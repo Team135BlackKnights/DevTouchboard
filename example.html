@@ -169,7 +169,22 @@
                     style="fill:#008080;stroke:#ffffff;stroke-width:5;stroke-dasharray:none" id="path99" />
             </g>
             <foreignObject width="1536.5998" height="179.749980769" x="0" y="240">
-                <input type="range" class="startPos" min="100" max="1446.5998">
+                <div class="sliderWrapper" style="position: relative; width: 1446px; height: 180px;">
+                    <input type="range" class="startPos" min="0" max="1470.5998"
+                        style="width: 100%; position: absolute; top: 0; left: 0; opacity: 0;">
+                    <div class="thumb" style="
+                        position: absolute;
+                        top: 0;
+                        left: 0;
+                        width: 100px;
+                        height: 100px;
+                        border-radius: 30px;
+                        border: 20px solid #ffffff;
+                        background-color: #a053ff;
+                        transform-origin: center center;
+                        pointer-events: none;
+                    "></div>
+                </div>
             </foreignObject>
         </svg>
         <div class="commands commandName">
@@ -385,7 +400,7 @@
             <button class="numberPlus animatedButton">+</button>
         </div>
 
-        <div class="basicSubscription" data-topic="" ><!-- must be the full path -->
+        <div class="basicSubscription" data-topic=""><!-- must be the full path -->
             <h1 class="bSTopic">Topic:</h1>
             <h1 class="bSValue">Value</h1>
         </div>

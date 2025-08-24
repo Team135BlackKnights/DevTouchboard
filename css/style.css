@@ -965,26 +965,6 @@ input[type=number] {
     touch-action: none;
 }
 
-.startPos {
-    margin: 0px;
-    margin-left: 15px;
-    width: 1506.5998px;
-    height: 179.749980769;
-    background: transparent;
-
-    appearance: none;
-}
-
-foreignObject input[type=range]::-webkit-slider-thumb {
-    -webkit-appearance: none;
-    height: 179.749980769px;
-    width: 179.749980769px;
-    border-radius: 30px;
-    border: #ffffff 20px solid;
-    background-color: #a053ff;
-
-
-}
 
 /* The switch - the box around the slider */
 .switch {

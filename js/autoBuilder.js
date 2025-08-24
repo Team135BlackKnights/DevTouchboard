@@ -308,51 +308,124 @@ for (let i = 0; i < $pbt.length; i++) {
 
 }
 
+const $slider = $(".startPos");
+const $thumb = $(".thumb");
 
-$('.startPos').on("input", () => {
-    // console.log($(".startPos").val())
-    drawPath()
-})
-let finishedPath = ""
+let finishedPath = "";
+let startRotation = 90;
 
-const observer = new MutationObserver(drawPath)
-observer.observe(document.getElementById("orderHolder"), { attributes: true, childList: true, subtree: true })
-
-function drawPath() {
-    let aPSVG = $(".autoMap")
-    $(".currentPath").remove()
-    $(".arrowHead").remove()
-    let pathElm = $(document.createElementNS(svgNS, 'path')).appendTo(aPSVG).addClass("currentPath")
-    pathElm.css("stroke", '#ffffffee')
-    pathElm.css("fill", 'none')
-
-    pathElm.css("stroke-width", "30")
-    finishedPath = ""
-
-    moveTo($(".startPos").val(), 330)
-    $(".orderHolder").offset()
-    let $oH = document.getElementsByClassName("ordered")
-
-    for (let i = 0; i < $oH.length; i++) {
-        let $eq = $($oH[i])
-        let $po = $("#pose" + $eq.text())
-        if ($po.attr("data-x")) {
-            lineTo(parseFloat($po.attr("data-x")) + (179.749980769 / 2), parseFloat($po.attr("data-y")) + (179.749980769 / 2))
-
-        }
-
-    }
-    pathElm.attr("d", finishedPath)
-    //Move arrow head to the start position
-    let arrowHead = $(document.createElementNS(svgNS, 'polygon')).appendTo(aPSVG).addClass("arrowHead")
-    arrowHead.css("fill", '#d45656ff') //grey
-    // Center the polygon around (0,0) by shifting points
-    arrowHead.attr("points", "-20,-20 20,5 -20,30")
-    // Move to start position and rotate
-    arrowHead.attr("transform", "translate(" + ($(".startPos").val()) + ", 330) rotate(90)")
-
-
+// Update thumb position and rotation
+function updateThumb() {
+    const val = parseFloat($slider.val());
+    $thumb.css({
+        left: val - $thumb.width()+15 + "px",
+        transform: `rotate(${startRotation}deg)`
+    });
 }
+
+// Draw path and arrow
+function drawPath() {
+    const aPSVG = $(".autoMap");
+    $(".currentPath").remove();
+    $(".arrowHead").remove();
+
+    const pathElm = $(document.createElementNS(svgNS, 'path')).appendTo(aPSVG).addClass("currentPath");
+    pathElm.css({ stroke: '#ffffffee', fill: 'none', 'stroke-width': '30' });
+    finishedPath = "";
+
+    moveTo($slider.val(), 330);
+
+    const $oH = document.getElementsByClassName("ordered");
+    for (let i = 0; i < $oH.length; i++) {
+        const $eq = $($oH[i]);
+        const $po = $("#pose" + $eq.text());
+        if ($po.attr("data-x")) {
+            lineTo(parseFloat($po.attr("data-x")) + (179.749980769 / 2),
+                   parseFloat($po.attr("data-y")) + (179.749980769 / 2));
+        }
+    }
+
+    pathElm.attr("d", finishedPath);
+
+    // Arrow head at start position
+    const arrowHead = $(document.createElementNS(svgNS, 'polygon')).appendTo(aPSVG).addClass("arrowHead");
+    arrowHead.css("fill", '#d45656ff');
+    const arrowSize = 20;
+    const startX = parseFloat($slider.val()) - 15;
+    const startY = 330;
+    const arrowPoints = [
+        `${startX},${startY}`,
+        `${startX + arrowSize},${startY - arrowSize*2}`,
+        `${startX - arrowSize},${startY - arrowSize*2}`
+    ].join(" ");
+    //rotate arrowHead
+    const angle = startRotation * (Math.PI / 180); // Convert degrees to radians
+    const centerX = startX;
+    const centerY = startY - arrowSize ; // Center of rotation
+    const rotatedPoints = arrowPoints.split(" ").map(point => {
+        const [x, y] = point.split(",").map(Number);
+        const newX = centerX + (x - centerX) * Math.cos(angle) - (y - centerY) * Math.sin(angle);
+        const newY = centerY + (x - centerX) * Math.sin(angle) + (y - centerY) * Math.cos(angle);
+        return `${newX},${newY}`;
+    }).join(" ");
+    arrowHead.attr("points", rotatedPoints);
+
+    
+    
+}
+
+// Slider input
+$slider.on("input", () => {
+    updateThumb();
+    drawPath();
+});
+
+// Observe changes to ordered elements
+const observer = new MutationObserver(drawPath);
+observer.observe(document.getElementById("orderHolder"), { attributes: true, childList: true, subtree: true });
+
+// Drag logic
+let isDragging = false;
+let dragMode = "";
+let startMouseX = 0;
+let startValue = 0;
+let dragStartRotation = 0;
+$(".sliderWrapper").on("mousedown", e => {
+    e.preventDefault();
+    startMouseX = e.clientX;
+    
+    if (e.button === 0) { // left-drag
+        dragMode = "move";
+        startValue = parseFloat($slider.val());
+    } else if (e.button === 2) { // right-drag
+        dragMode = "rotate";
+        dragStartRotation = startRotation; // store rotation at drag start
+    }
+    isDragging = true;
+});
+
+$(document).on("mousemove", e => {
+    if (!isDragging) return;
+    const deltaX = e.clientX - startMouseX;
+
+    if (dragMode === "move") {
+        let newVal = startValue + deltaX*2.5;
+        newVal = Math.max(100, Math.min(1470, newVal));
+        $slider.val(newVal).trigger("input");
+    } else if (dragMode === "rotate") {
+        startRotation = dragStartRotation + deltaX*2.5; // rotation directly relative to drag start
+        updateThumb();
+        drawPath();
+    }
+});
+
+$(document).on("mouseup", () => {
+    isDragging = false;
+});
+
+// Initialize
+updateThumb();
+drawPath();
 
 
 function moveTo(x, y) {
