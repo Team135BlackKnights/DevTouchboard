@@ -23,10 +23,10 @@
 const svgNS = "http://www.w3.org/2000/svg";
 
 let commandList = [
-     {
-         name: 'Test', // name whatever
-         value: 'LR', //max 2 characters, can be anything, used by the robot to determine what to do
-     },
+    {
+        name: 'Test', // name whatever
+        value: 'LR', //max 2 characters, can be anything, used by the robot to determine what to do
+    },
     // {
     //     name: '*command',
     //     value: '*value',
@@ -318,7 +318,7 @@ let startRotation = 90;
 function updateThumb() {
     const val = parseFloat($slider.val());
     $thumb.css({
-        left: val - $thumb.width()+15 + "px",
+        left: val - $thumb.width() + 15 + "px",
         transform: `rotate(${startRotation}deg)`
     });
 }
@@ -328,6 +328,7 @@ function drawPath() {
     const aPSVG = $(".autoMap");
     $(".currentPath").remove();
     $(".arrowHead").remove();
+    //in the top left, add a little text showing the degrees
 
     const pathElm = $(document.createElementNS(svgNS, 'path')).appendTo(aPSVG).addClass("currentPath");
     pathElm.css({ stroke: '#ffffffee', fill: 'none', 'stroke-width': '30' });
@@ -341,7 +342,7 @@ function drawPath() {
         const $po = $("#pose" + $eq.text());
         if ($po.attr("data-x")) {
             lineTo(parseFloat($po.attr("data-x")) + (179.749980769 / 2),
-                   parseFloat($po.attr("data-y")) + (179.749980769 / 2));
+                parseFloat($po.attr("data-y")) + (179.749980769 / 2));
         }
     }
 
@@ -355,13 +356,13 @@ function drawPath() {
     const startY = 330;
     const arrowPoints = [
         `${startX},${startY}`,
-        `${startX + arrowSize},${startY - arrowSize*2}`,
-        `${startX - arrowSize},${startY - arrowSize*2}`
+        `${startX + arrowSize},${startY - arrowSize * 2}`,
+        `${startX - arrowSize},${startY - arrowSize * 2}`
     ].join(" ");
     //rotate arrowHead
     const angle = startRotation * (Math.PI / 180); // Convert degrees to radians
     const centerX = startX;
-    const centerY = startY - arrowSize ; // Center of rotation
+    const centerY = startY - arrowSize; // Center of rotation
     const rotatedPoints = arrowPoints.split(" ").map(point => {
         const [x, y] = point.split(",").map(Number);
         const newX = centerX + (x - centerX) * Math.cos(angle) - (y - centerY) * Math.sin(angle);
@@ -369,8 +370,8 @@ function drawPath() {
         return `${newX},${newY}`;
     }).join(" ");
     arrowHead.attr("points", rotatedPoints);
-    
-    
+
+
 }
 
 // Slider input
@@ -392,7 +393,7 @@ let dragStartRotation = 0;
 $(".sliderWrapper").on("mousedown", e => {
     e.preventDefault();
     startMouseX = e.clientX;
-    
+
     if (e.button === 0) { // left-drag
         dragMode = "move";
         startValue = parseFloat($slider.val());
@@ -408,11 +409,53 @@ $(document).on("mousemove", e => {
     const deltaX = e.clientX - startMouseX;
 
     if (dragMode === "move") {
-        let newVal = startValue + deltaX*2.5;
-        newVal = Math.max(100, Math.min(1470, newVal));
+        let newVal = startValue + deltaX;
+        newVal = Math.max(100, Math.min(1446.5998, newVal));
         $slider.val(newVal).trigger("input");
     } else if (dragMode === "rotate") {
-        startRotation = dragStartRotation + deltaX*2.5; // rotation directly relative to drag start
+        // Calculate rotation relative to drag start
+        let rawRotation = dragStartRotation + deltaX * 0.5;
+
+        // Round rotation to nearest multiple of 5°
+        startRotation = Math.round(rawRotation / 5) * 5;
+        $(".rotationText").remove();
+
+        const textElement = document.createElementNS(svgNS, "text");
+        textElement.setAttribute("class", "rotationText");
+        textElement.setAttribute("x", "20");
+        textElement.setAttribute("y", "65");
+        textElement.setAttribute("fill", "#ffffff");
+        textElement.setAttribute("font-size", "60");
+        textElement.setAttribute("font-family", "Arial, sans-serif");
+        textElement.setAttribute("pointer-events", "all"); // Make it clickable
+        textElement.setAttribute("cursor", "pointer");
+        textElement.setAttribute("text-decoration", "underline");
+        textElement.textContent = startRotation + "°";
+        
+        // Add click handler for setting rotation
+        $(textElement).on("click", function(e) {
+            e.stopPropagation(); // Prevent other click handlers
+            
+            const currentRotation = startRotation;
+            const newRotation = prompt(`Enter rotation (current: ${currentRotation}°):`, currentRotation);
+            
+            if (newRotation !== null && !isNaN(newRotation)) {
+                const rotation = parseInt(newRotation);
+                // Optional: constrain to reasonable range
+                const constrainedRotation = Math.max(-180, Math.min(180, rotation));
+                startRotation = Math.round(constrainedRotation) // Round to nearest 5°
+                
+                // Update the text
+                textElement.textContent = startRotation + "°";
+                
+                // Update the visual representation
+                updateThumb();
+                drawPath();
+            }
+        });
+        
+        // Append to SVG
+        $(".autoMap")[0].appendChild(textElement);
         updateThumb();
         drawPath();
     }
@@ -453,7 +496,7 @@ function arc(endX, endY, rx, sweep) {
 
 $(".send").on("click", () => {
     let $oH = document.getElementsByClassName("ordered")
-    let finalString = startRotation+ "_" + ($slider.val()-100)/1370+ "_"
+    let finalString = startRotation + "_" + ($slider.val() - 100) / 1370 + "_"
     // console.log($oH)
     for (let i = 0; i < $oH.length; i++) {
         let $eq = $($oH[i])
@@ -496,7 +539,7 @@ export function setFromString(string) {
     startRotation = parseFloat(poseParts[0])
     let x = parseFloat(poseParts[1]) * 1370 + 100
     $slider.val(x).trigger("input")
-    let actions = poseParts[poseParts.length - 1] 
+    let actions = poseParts[poseParts.length - 1]
     let stringArr = actions.split("-")
 
     for (let i = 0; i < stringArr.length; i++) {
@@ -586,7 +629,7 @@ $('.save').on("mousedown touchstart", () => {
 
     if (saveName !== null) {
         let $oH = document.getElementsByClassName("ordered")
-        let finalString = startRotation+ "_" + ($slider.val()-100)/1370+ "_"
+        let finalString = startRotation + "_" + ($slider.val() - 100) / 1370 + "_"
         for (let i = 0; i < $oH.length; i++) {
             let $eq = $($oH[i])
             finalString = finalString + $eq.text() + "-"
