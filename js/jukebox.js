@@ -23,24 +23,30 @@
 import { nt4Client } from "./ui.js"
 
 
-let tracks = [
-    // {
-    //     name: "Best song evr",
-    //     coverArtSRC: "./coverArt/bestArtever.png",
-    //     //Note that src is relative to the html file, NOT THIS FILE!!
-    //     robotFileName: "THESONGGGG.chrp",
-    //     played: false
-    // },
+let tracks =
+    [{
+        name: "Megolovania",
+        coverArtSRC: "./coverart/undertale.png",
+        robotFileName: "chrp name (goes in deploy btw).chrp",
+        played: false // Required for shuffle to work include this 
+    },
+        // {
+        //     name: "Best song evr",
+        //     coverArtSRC: "./coverArt/bestArtever.png",
+        //     //Note that src is relative to the html file, NOT THIS FILE!!
+        //     robotFileName: "THESONGGGG.chrp",
+        //     played: false
+        // },
 
-    // {
-    //     name: "*name",
-    //     coverArtSRC: "src",
-    //     robotFileName: "chrp name (goes in deploy btw).chrp",
-    //     played: false // Required for shuffle to work include this 
-    // },
-    //     //Note that src is relative to the html file, NOT THIS FILE!!
+        // {
+        //     name: "*name",
+        //     coverArtSRC: "src",
+        //     robotFileName: "chrp name (goes in deploy btw).chrp",
+        //     played: false // Required for shuffle to work include this 
+        // },
+        //     //Note that src is relative to the html file, NOT THIS FILE!!
 
-]
+    ];
 
 let currentPlaybackArr = tracks
 

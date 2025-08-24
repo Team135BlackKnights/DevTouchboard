@@ -23,10 +23,10 @@
 const svgNS = "http://www.w3.org/2000/svg";
 
 let commandList = [
-    // {
-    //     name: 'Command', // name whatever
-    //     value: 'Z', //Values a=l are taken for field poses, LT LM LB RT RM RB are also taken
-    // },
+     {
+         name: 'Test', // name whatever
+         value: 'LR', //max 2 characters, can be anything, used by the robot to determine what to do
+     },
     // {
     //     name: '*command',
     //     value: '*value',
@@ -69,7 +69,7 @@ let currentDragStarted
 let startDragX = 0
 let mouseIsDown = false
 let initalLeft
-
+let paths
 populateCommands()
 function populateCommands() {
     $(".commandHolder").empty()
@@ -312,9 +312,7 @@ for (let i = 0; i < $pbt.length; i++) {
 $('.startPos').on("input", () => {
     // console.log($(".startPos").val())
     drawPath()
-
 })
-
 let finishedPath = ""
 
 const observer = new MutationObserver(drawPath)
@@ -323,6 +321,7 @@ observer.observe(document.getElementById("orderHolder"), { attributes: true, chi
 function drawPath() {
     let aPSVG = $(".autoMap")
     $(".currentPath").remove()
+    $(".arrowHead").remove()
     let pathElm = $(document.createElementNS(svgNS, 'path')).appendTo(aPSVG).addClass("currentPath")
     pathElm.css("stroke", '#ffffffee')
     pathElm.css("fill", 'none')
@@ -344,6 +343,13 @@ function drawPath() {
 
     }
     pathElm.attr("d", finishedPath)
+    //Move arrow head to the start position
+    let arrowHead = $(document.createElementNS(svgNS, 'polygon')).appendTo(aPSVG).addClass("arrowHead")
+    arrowHead.css("fill", '#d45656ff') //grey
+    // Center the polygon around (0,0) by shifting points
+    arrowHead.attr("points", "-20,-20 20,5 -20,30")
+    // Move to start position and rotate
+    arrowHead.attr("transform", "translate(" + ($(".startPos").val()) + ", 330) rotate(90)")
 
 
 }

@@ -27,7 +27,7 @@ import { setFromString } from "./autoBuilder.js";
 let paths = {}
 
 if (localStorage.getItem("paths") == null) {
-    localStorage.setItem("paths", JSON.stringify("{}"))
+    localStorage.setItem("paths", JSON.stringify({}))
     
 } else {
     paths = JSON.parse(localStorage.getItem("paths"))
