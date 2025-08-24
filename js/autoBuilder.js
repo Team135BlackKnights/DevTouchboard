@@ -369,7 +369,6 @@ function drawPath() {
         return `${newX},${newY}`;
     }).join(" ");
     arrowHead.attr("points", rotatedPoints);
-
     
     
 }
@@ -454,7 +453,7 @@ function arc(endX, endY, rx, sweep) {
 
 $(".send").on("click", () => {
     let $oH = document.getElementsByClassName("ordered")
-    let finalString = ""
+    let finalString = startRotation+ "_" + ($slider.val()-100)/1370+ "_"
     // console.log($oH)
     for (let i = 0; i < $oH.length; i++) {
         let $eq = $($oH[i])
@@ -467,6 +466,7 @@ $(".send").on("click", () => {
     if ($("#connect")[0].checked) {
         nt4Client.publishTopic("/touchboard/posePlotterFinalString", "string")
         nt4Client.addSample("/touchboard/posePlotterFinalString", finalString);
+
         $(".connectionText").text("Sending Path!")
 
         setTimeout(() => {
@@ -491,7 +491,13 @@ export function setFromString(string) {
     } else if (string.length < 1) {
         return
     }
-    let stringArr = string.split("-")
+    //deal with Pose position
+    let poseParts = string.split("_")
+    startRotation = parseFloat(poseParts[0])
+    let x = parseFloat(poseParts[1]) * 1370 + 100
+    $slider.val(x).trigger("input")
+    let actions = poseParts[poseParts.length - 1] 
+    let stringArr = actions.split("-")
 
     for (let i = 0; i < stringArr.length; i++) {
 
@@ -580,7 +586,7 @@ $('.save').on("mousedown touchstart", () => {
 
     if (saveName !== null) {
         let $oH = document.getElementsByClassName("ordered")
-        let finalString = ""
+        let finalString = startRotation+ "_" + ($slider.val()-100)/1370+ "_"
         for (let i = 0; i < $oH.length; i++) {
             let $eq = $($oH[i])
             finalString = finalString + $eq.text() + "-"
