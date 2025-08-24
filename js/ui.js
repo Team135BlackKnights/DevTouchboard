@@ -314,7 +314,8 @@ for (let i = 0; i < $reefBtns.length; i++) {
 
     }
 
-    $reefBtns.eq(i).css("background-color", "hsl(" + hue + " 100 25").css("border-color", "hsl(" + hue + " 100 50").css("grid-area", $reefBtns.eq(i).attr("data-topic").slice(0, 2))
+    // derive grid-area from data-topic by removing trailing "btn" so names like P10btn -> P10
+    $reefBtns.eq(i).css("background-color", "hsl(" + hue + " 100 25").css("border-color", "hsl(" + hue + " 100 50").css("grid-area", $reefBtns.eq(i).attr("data-topic").replace(/btn$/i, ""))
 }
 
 function onConnectCb() {

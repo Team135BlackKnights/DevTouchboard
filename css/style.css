@@ -576,13 +576,13 @@ input[type=number] {
 
     display: grid;
     grid-template-areas:
-        ". . PH PG . ."
-        ". PI . . PF ."
-        "PJ . . . . PE"
-        ". . SL SR . ."
-        "PK . . . . PD"
-        ". PL . . PC ."
-        ". . PA PB . .";
+        ". . P6 . P7 . ."
+        ". P5 . . . P8 ."
+        "P4 . . . . . P9"
+        ". . SL GO SR . ."
+        "P3 . . . . . P10"
+        ". P2 . . . P11 ."
+        ". . P1 . P12 . .";
     justify-self: center
 }
 
@@ -596,6 +596,12 @@ input[type=number] {
     margin-top: -7vmin;
     margin-bottom: -7vmin;
 
+}
+
+.GObtn {
+    margin-top: -7vmin;
+    margin-bottom: -7vmin;
+    grid-area: GO;
 }
 
 .reefPFHolder button:nth-child(-n+2) {
