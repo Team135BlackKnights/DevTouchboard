@@ -319,7 +319,7 @@ function updateThumb() {
     const val = parseFloat($slider.val());
     $thumb.css({
         left: val - $thumb.width() + 15 + "px",
-        transform: `rotate(${startRotation}deg)`
+        transform: `rotate(${-(startRotation-180)}deg)`
     });
 }
 
@@ -360,7 +360,7 @@ function drawPath() {
         `${startX - arrowSize},${startY - arrowSize * 2}`
     ].join(" ");
     //rotate arrowHead
-    const angle = startRotation * (Math.PI / 180); // Convert degrees to radians
+    const angle = -(startRotation-180) * (Math.PI / 180); // Convert degrees to radians
     const centerX = startX;
     const centerY = startY - arrowSize; // Center of rotation
     const rotatedPoints = arrowPoints.split(" ").map(point => {
@@ -418,6 +418,12 @@ $(document).on("mousemove", e => {
 
         // Round rotation to nearest multiple of 5°
         startRotation = Math.round(rawRotation / 5) * 5;
+        //Wrap rotation to -180 to 180, for example 190° becomes -170°
+        if (startRotation > 180) {
+            startRotation -= 360;
+        } else if (startRotation < -180) {
+            startRotation += 360;
+        }
         $(".rotationText").remove();
 
         const textElement = document.createElementNS(svgNS, "text");
