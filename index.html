@@ -1,26 +1,3 @@
-<!-- MIT License
-
-Copyright (c) 2025 Tigerbots
-
-Permission is hereby granted, free of charge, to any person obtaining a copy
-of this software and associated documentation files (the "Software"), to deal
-in the Software without restriction, including without limitation the rights
-to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-copies of the Software, and to permit persons to whom the Software is
-furnished to do so, subject to the following conditions:
-
-The above copyright notice and this permission notice shall be included in all
-copies or substantial portions of the Software.
-
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-SOFTWARE. -->
-
-
 <!DOCTYPE html>
 <html lang="en" oncontextmenu="return false">
 
@@ -29,7 +6,7 @@ SOFTWARE. -->
     <base href="." />
     <!-- <meta name="viewport" content="width=device-width, initial-scale=1.0"> -->
     <meta name="viewport" content="initial-scale=1, width=device-width, viewport-fit=cover, minimum-scale=1">
-    <title>Touchboard</title>
+    <title>Touchboard (example) </title>
     <link rel="stylesheet" href="./css/style.css">
     <script src="./lib/jquery.js"></script>
 </head>
@@ -37,13 +14,11 @@ SOFTWARE. -->
 <body>
 
     <div class="tabNav">
-        <!-- Insert tab buttons after this or between existing buttons after here -->
         <div class="tab currentTab" data-page=".autonomus"><i>Pose-Plotter</i></div>
+        <div class="tab tabConnection" data-page=".teleop">Teleop</div>
+        <div class="tab tabConnection" data-page=".reefDrive">Dual</div>
+        <div class="tab tabConnection" data-page=".driverTarget">Poses</div>
         <div class="tab tabConnection" data-page=".jukeBox">Jukebox</div>
-
-        <div class="tab tabConnection" data-page=".uiTestTab" data-displaytype="flex">Ui Test</div> <!-- Comment out when done testing-->
-
-        <!-- Insert tab buttons before this or between existing buttons before here -->
 
 
         <p class="connectionText">Offline</p>
@@ -61,12 +36,23 @@ SOFTWARE. -->
         <p class="simHint">Use localhost for simulator</p>
         <input type="button" class="setTeam" value="Set">
     </div>
-    <!-- Insert tabs after this or between existing tabs after here -->
 
-    <!-- I recommend minimizing existing tabs -->
     <div class="autonomus pageF">
         <div class="order">
             <div class="orderHolder" id="orderHolder">
+                <!-- <div class="ordered">3s</div>
+                <div class="ordered">I</div>
+                <div class="ordered">4</div>
+                <div class="ordered">F</div>
+                <div class="ordered">0S</div>
+                <div class="ordered">M</div>
+                <div class="ordered">T</div>
+                <div class="ordered">3S</div>
+                <div class="ordered">K</div>
+                <div class="ordered">4</div>
+                <div class="ordered">F</div>
+                <div class="ordered">0S</div> -->
+
 
 
             </div>
@@ -85,51 +71,51 @@ SOFTWARE. -->
                     <path
                         style="fill:#333333;fill-rule:evenodd;stroke:#ffffff;stroke-width:200;stroke-linecap:butt;stroke-linejoin:bevel;stroke-miterlimit:7.7;stroke-dasharray:none;paint-order:stroke fill markers"
                         d="m 9820.8011,13071.916 c -883.8673,-510.296 -1609.7583,-930.538 -1613.0913,-933.871 -8.3839,-8.384 2316.6762,-4039.8688 2330.4702,-4040.8671 8.016,-0.58 1575.938,2700.9841 2128.42,3667.3111 l 30.32,53.033 -622.275,1078.338 c -342.252,593.086 -627.797,1084.082 -634.545,1091.103 -6.747,7.02 -735.432,-404.751 -1619.2989,-915.047 z"
-                        id="poseI" class="poseBTN" data-pose="I" data-x=" 478.857 " data-y=" 574.857 " />
+                        id="pose5" class="poseBTN" data-pose="5" data-x=" 478.857 " data-y=" 574.857 " />
                     <path
                         style="fill:#333333;fill-rule:evenodd;stroke:#ffffff;stroke-width:200;stroke-linecap:butt;stroke-linejoin:round;stroke-miterlimit:7.7;stroke-dasharray:none;paint-order:stroke fill markers"
                         d="m 12742.306,11682.813 c -25.385,-43.829 -134.586,-232.468 -242.668,-419.199 -108.082,-186.731 -202.707,-349.856 -210.277,-362.5 -7.571,-12.644 -15.812,-27.208 -18.315,-32.364 -14.993,-30.888 -199.611,-347.244 -203.645,-348.958 -2.695,-1.146 -4.901,-4.837 -4.901,-8.202 0,-8.64 -169.476,-301.766 -175.936,-304.298 -2.923,-1.146 -5.314,-5.089 -5.314,-8.761 0,-9.104 -56.435,-106.77 -65.005,-112.498 -3.778,-2.525 -4.787,-4.635 -2.24,-4.687 5.489,-0.114 -32.301,-63.656 -41.816,-70.313 -3.61,-2.525 -4.583,-4.635 -2.161,-4.687 5.442,-0.119 -56.38,-108.0015 -64.924,-113.2947 -3.394,-2.1032 -5.653,-5.7785 -5.02,-8.1676 1.312,-4.9514 -160.208,-287.5504 -171.091,-299.3435 -3.915,-4.2421 -7.633,-10.5981 -8.263,-14.1246 -0.63,-3.5264 -199.614,-350.0596 -442.188,-770.0738 -242.573,-420.0142 -441.042,-765.1088 -441.042,-766.877 0,-1.7681 1051.875,-3.2148 2337.5,-3.2148 h 2337.5 V 9896.875 11762.5 h -1262.019 -1262.019 z"
-                        id="poseH" class="poseBTN" data-pose="H" data-x=" 646.533 " data-y=" 478.219 " />
+                        id="pose6" class="poseBTN" data-pose="6" data-x=" 646.533 " data-y=" 478.219 " />
                     <path
                         style="fill:#333333;fill-rule:evenodd;stroke:#ffffff;stroke-width:200;stroke-linecap:butt;stroke-linejoin:round;stroke-miterlimit:7.7;stroke-dasharray:none;paint-order:stroke fill markers"
                         d="M 15423.767,9899.495 V 8034.5008 h 2334.208 2334.208 l -23.45,41.9845 c -12.897,23.0914 -497.073,862.3388 -1075.947,1864.9941 l -1052.498,1823.0096 h -1258.26 -1258.261 z"
-                        id="poseG" class="poseBTN" data-pose="G" data-x=" 711.419 " data-y=" 478.633 " />
+                        id="pose7" class="poseBTN" data-pose="7" data-x=" 711.419 " data-y=" 478.633 " />
                     <path
                         style="fill:#333333;fill-rule:evenodd;stroke:#ffffff;stroke-width:200;stroke-linecap:butt;stroke-linejoin:round;stroke-miterlimit:7.7;stroke-dasharray:none;paint-order:stroke fill markers"
                         d="m 18673.394,12918.403 c -343.423,-594.841 -626.516,-1087.027 -629.094,-1093.746 -2.578,-6.72 96.755,-187.821 220.742,-402.448 123.986,-214.626 226.507,-395.438 227.824,-401.803 1.318,-6.365 6.838,-15.565 12.268,-20.444 12.259,-11.016 479.392,-820.929 482.701,-836.906 1.321,-6.374 6.865,-15.582 12.319,-20.461 5.455,-4.879 275.57,-469.4375 600.255,-1032.3522 l 590.336,-1023.4813 32.179,55.6289 c 945.035,1633.7084 2299.521,3985.4726 2298.418,3990.6926 -1.05,4.971 -3063.511,1778.936 -3209.385,1859.072 -11.792,6.478 -118.447,-172.864 -638.563,-1073.752 z"
-                        id="poseF" class="poseBTN" data-pose="F" data-x=" 878.703 " data-y=" 574.801 " />
+                        id="pose8" class="poseBTN" data-pose="8" data-x=" 878.703 " data-y=" 574.801 " />
                     <path
                         style="fill:#333333;fill-rule:evenodd;stroke:#ffffff;stroke-width:200;stroke-linecap:butt;stroke-linejoin:round;stroke-miterlimit:7.7;stroke-dasharray:none;paint-order:stroke fill markers"
                         d="m 19990.754,15199.968 c -343.31,-594.642 -626.404,-1086.908 -629.096,-1093.925 -7.321,-19.078 3212.857,-1877.107 3226.846,-1861.877 11.183,12.175 2328.171,4025.2 2328.171,4032.393 0,2.516 -967.887,4.575 -2150.86,4.575 h -2150.86 z"
-                        id="poseE" class="poseBTN" data-pose="E" data-x=" 910.788 " data-y=" 631.201 " />
+                        id="pose9" class="poseBTN" data-pose="9" data-x=" 910.788 " data-y=" 631.201 " />
                     <path
                         style="fill:#333333;fill-rule:evenodd;stroke:#ffffff;stroke-width:200;stroke-linecap:butt;stroke-linejoin:round;stroke-miterlimit:7.7;stroke-dasharray:none;paint-order:stroke fill markers"
                         d="m 20999.091,19520.244 c -870.188,-502.696 -1595.342,-922.805 -1611.453,-933.573 l -29.293,-19.579 629.049,-1089.796 629.048,-1089.796 h 2148.029 c 1181.416,0 2148.029,2.584 2148.029,5.742 0,4.715 -2324.055,4034.705 -2329.541,4039.502 -0.94,0.822 -713.681,-409.803 -1583.868,-912.5 z"
-                        id="poseD" class="poseBTN" data-pose="D" data-x=" 910.559 " data-y=" 823.724 " />
+                        id="pose10" class="poseBTN" data-pose="10" data-x=" 910.559 " data-y=" 823.724 " />
                     <path
                         style="fill:#333333;fill-rule:evenodd;stroke:#ffffff;stroke-width:200;stroke-linecap:butt;stroke-linejoin:round;stroke-miterlimit:7.7;stroke-dasharray:none;paint-order:stroke fill markers"
                         d="m 19115.54,22714.139 -1075.857,-1863.291 627.033,-1087.582 c 344.869,-598.17 630.135,-1087.736 633.926,-1087.924 3.79,-0.188 362.665,205.064 797.498,456.116 434.833,251.051 797.337,457.77 805.563,459.375 8.226,1.604 20.602,9.112 27.502,16.685 6.9,7.572 366.92,217.865 800.045,467.319 433.125,249.454 788.962,454.721 790.75,456.149 1.787,1.428 -516.085,902.072 -1150.827,2001.431 -634.742,1099.358 -1159.859,2009.224 -1166.926,2021.923 -10.705,19.235 -192.485,-288.021 -1088.707,-1840.201 z"
-                        id="poseC" class="poseBTN" data-pose="C" data-x=" 877.758 " data-y=" 879.710 " />
+                        id="pose11" class="poseBTN" data-pose="11" data-x=" 877.758 " data-y=" 879.710 " />
                     <path
                         style="fill:#333333;fill-rule:evenodd;stroke:#ffffff;stroke-width:200;stroke-linecap:butt;stroke-linejoin:round;stroke-miterlimit:7.7;stroke-dasharray:none;paint-order:stroke fill markers"
                         d="m 15425,22775 v -1850 h 1275 c 925.045,0 1275,7.692 1275,28.024 0,35.831 602.672,1081.685 629.73,1092.809 11.149,4.584 20.27,20.163 20.27,34.621 0,33.861 329.479,604.36 355.399,615.379 10.781,4.584 19.601,20.47 19.601,35.303 0,27.42 222.232,421 250.625,443.864 8.537,6.875 22.749,32.091 31.582,56.036 29.79,80.759 472.893,831.296 501.724,849.831 15.713,10.102 20.644,18.54 10.958,18.75 -9.686,0.211 39.204,98.762 108.645,219.003 69.442,120.241 136.825,238.366 149.741,262.5 22.314,41.694 -92.392,43.88 -2302.395,43.88 H 15425 Z"
-                        id="poseB" class="poseBTN" data-pose="B" data-x=" 709.744 " data-y=" 976.932 " />
+                        id="pose12" class="poseBTN" data-pose="12" data-x=" 709.744 " data-y=" 976.932 " />
                     <path
                         style="fill:#333333;fill-rule:evenodd;stroke:#ffffff;stroke-width:200;stroke-linecap:butt;stroke-linejoin:round;stroke-miterlimit:7.7;stroke-dasharray:none;paint-order:stroke fill markers"
                         d="m 10945.187,24118.107 c 160.772,-278.792 641.063,-1111.229 1067.313,-1849.86 l 775,-1342.967 1256.25,-0.14 1256.25,-0.14 v 1850 1850 h -2323.563 -2323.563 z"
-                        id="poseA" class="poseBTN" data-pose="A" data-x=" 646.859 " data-y=" 976.518 " />
+                        id="pose1" class="poseBTN" data-pose="1" data-x=" 646.859 " data-y=" 976.518 " />
                     <path
                         style="fill:#333333;fill-rule:evenodd;stroke:#ffffff;stroke-width:200;stroke-linecap:butt;stroke-linejoin:round;stroke-miterlimit:7.7;stroke-dasharray:none;paint-order:stroke fill markers"
                         d="M 9377.8565,22549.279 C 8741.328,21446.633 8229.9748,20535.871 8241.516,20525.363 8282.6434,20487.918 11395.025,18700 11419.082,18700 c 21.244,0 1203.215,2022.287 1242.661,2126.123 8.716,22.946 -73.288,190.376 -202.037,412.5 -119.189,205.632 -217.008,387.94 -217.374,405.127 -0.366,17.188 -8.848,31.25 -18.849,31.25 -23.787,0 -362.884,601.037 -354.733,628.75 3.438,11.688 -3.391,21.25 -15.175,21.25 -25.701,0 -361.164,574.023 -361.602,618.75 -0.168,17.188 -8.072,31.25 -17.564,31.25 -22.846,0 -357.042,578.52 -357.436,618.75 -0.168,17.188 -8.254,31.25 -17.969,31.25 -9.714,0 -126.861,190.326 -260.326,422.947 -133.465,232.621 -256.351,441.666 -273.08,464.545 -25.918,35.444 -201.617,-254.969 -1187.7415,-1963.213 z"
-                        id="poseL" class="poseBTN" data-pose="L" data-x=" 478.411 " data-y=" 878.900 " />
+                        id="pose2" class="poseBTN" data-pose="2" data-x=" 478.411 " data-y=" 878.900 " />
                     <path
                         style="fill:#333333;fill-rule:evenodd;stroke:#ffffff;stroke-width:200;stroke-linecap:butt;stroke-linejoin:round;stroke-miterlimit:7.7;stroke-dasharray:none;paint-order:stroke fill markers"
                         d="M 8105.2826,20344.314 C 8078.0621,20299.316 7569.5581,19418.75 6975.2737,18387.5 6380.9894,17356.25 5878.8021,16487.188 5859.302,16456.25 L 5823.8474,16400 H 7969.1587 10114.47 l 626.445,1084.635 626.445,1084.635 -1008.68,582.01 C 9803.906,19471.386 9350,19740.8 9350,19749.979 c 0,9.178 -14.0625,16.963 -31.25,17.298 -25.2307,0.493 -746.1625,406.588 -1085.1127,611.236 l -78.8627,47.614 z"
-                        id="poseK" class="poseBTN" data-pose="K" data-x=" 447.327 " data-y=" 824.232 " />
+                        id="pose3" class="poseBTN" data-pose="3" data-x=" 447.327 " data-y=" 824.232 " />
                     <path
                         style="fill:#333333;fill-rule:evenodd;stroke:#ffffff;stroke-width:200;stroke-linecap:butt;stroke-linejoin:round;stroke-miterlimit:7.7;stroke-dasharray:none;paint-order:stroke fill markers"
                         d="m 5869.9037,16193.75 c 26.9399,-44.687 535.2835,-925 1129.6523,-1956.25 594.3689,-1031.25 1097.0238,-1900.915 1117.0109,-1932.589 l 36.3402,-57.589 167.2964,93.895 c 92.013,51.642 208.3063,116.932 258.4295,145.089 50.1233,28.157 179.4983,103.017 287.5,166.357 108.0018,63.34 263.867,152.017 346.367,197.061 82.5,45.043 161.25,90.59 175,101.214 13.75,10.625 171.25,102.913 350,205.085 178.75,102.172 472.571,271.99 652.935,377.372 180.364,105.383 339.739,191.605 354.166,191.605 14.428,0 29.982,8.897 34.566,19.771 4.583,10.875 134.807,92.437 289.385,181.25 154.579,88.814 281.142,170.665 281.25,181.893 0.109,11.228 -278.239,503.246 -618.552,1093.373 l -618.75,1072.957 -2145.789,0.378 -2145.789,0.378 z"
-                        id="poseJ" class="poseBTN" data-pose="J" data-x=" 447.056 " data-y=" 629.111 " />
+                        id="pose4" class="poseBTN" data-pose="4" data-x=" 447.056 " data-y=" 629.111 " />
                     <path
                         style="fill:#333333;fill-rule:evenodd;stroke:#ffffff;stroke-width:200;stroke-linecap:butt;stroke-linejoin:round;stroke-miterlimit:7.7;stroke-dasharray:none;paint-order:stroke fill markers"
                         d="m 106.06602,23490.099 c 0,-2996.31 2.12811,-3096.794 63.85963,-3015.287 281.02014,371.047 2937.56365,4050.754 2941.19605,4073.993 3.8343,24.531 -2739.44269,1895.166 -2943.18384,2006.951 -58.71321,32.214 -61.87184,-124.292 -61.87184,-3065.657 z"
@@ -182,8 +168,23 @@ SOFTWARE. -->
                 <path d="m -2902.0162,-14107.313 a 39.7095,39.7095 0 0 0 0,-79.419 39.7095,39.7095 0 0 0 0,79.419 z"
                     style="fill:#008080;stroke:#ffffff;stroke-width:5;stroke-dasharray:none" id="path99" />
             </g>
-            <foreignObject x="0" y="300">
-                <div class="interactiveArea"></div>
+            <foreignObject width="1536.5998" height="179.749980769" x="0" y="240">
+                <div class="sliderWrapper" style="position: relative; width: 1446px; height: 180px;">
+                    <input type="range" class="startPos" min="0" max="1470.5998"
+                        style="width: 100%; position: absolute; top: 0; left: 0; opacity: 0;">
+                    <div class="thumb" style="
+                        position: absolute;
+                        top: 0;
+                        left: 0;
+                        width: 100px;
+                        height: 100px;
+                        border-radius: 30px;
+                        border: 20px solid #ffffff;
+                        background-color: #a053ff;
+                        transform-origin: center center;
+                        pointer-events: none;
+                    "></div>
+                </div>
             </foreignObject>
         </svg>
         <div class="commands commandName">
@@ -224,7 +225,109 @@ SOFTWARE. -->
             <input type="button" class="send" value="➦">
         </div>
     </div>
-   
+    <div class="teleop page">
+        <button class="actionButton animatedButton L4" data-type="boolean" data-topic="L4btn"
+            data-value="false">L4</button>
+        <button class="actionButton animatedButton L3" data-type="boolean" data-topic="L3btn"
+            data-value="false">L3</button>
+        <button class="actionButton animatedButton L2" data-type="boolean" data-topic="L2btn"
+            data-value="false">L2</button>
+        <button class="actionButton animatedButton L1" data-type="boolean" data-topic="L1btn"
+            data-value="false">L1</button>
+        <button class="actionButton animatedButton intake" data-type="boolean" data-topic="Intake"
+            data-value="false">Intake</button>
+        <button class="actionButton animatedButton revIntake" data-type="boolean" data-topic="RevIntake"
+            data-value="false">Reverse Intake</button>
+        <button class="actionButton animatedButton shoot" data-type="boolean" data-topic="Shoot"
+            data-value="false">Shoot</button>
+        <button class="actionButton animatedButton shoot2" data-type="boolean" data-topic="Shoot2"
+            data-value="false">Shoot2</button>
+
+        <div class="verticalAxis actuatorAxis" data-topic="ActuatorAxis" data-value="0" data-type="double">
+            <h1 class="axisLabel">Actuator Control</h1>
+            <input class="verticalAxisKnob" type="range" min="-1" max="1" step="0.01" value="0">
+        </div>
+    </div>
+
+    <div class="reefDrive page">
+        <!--Use btnHolder class to give buttons inside div logic-->
+        <div class="reefPFHolder btnHolder">
+            <button class="oneShotButton  P1btn" data-type="boolean" data-topic="P1btn" data-value="false">1</button>
+            <button class="oneShotButton  P12btn" data-type="boolean" data-topic="P12btn" data-value="false">12</button>
+            <button class="oneShotButton  P11btn" data-type="boolean" data-topic="P11btn" data-value="false">11</button>
+            <button class="oneShotButton  P10btn" data-type="boolean" data-topic="P10btn" data-value="false">10</button>
+            <button class="oneShotButton  P9btn" data-type="boolean" data-topic="P9btn" data-value="false">9</button>
+            <button class="oneShotButton  P8btn" data-type="boolean" data-topic="P8btn" data-value="false">8</button>
+            <button class="oneShotButton  P7btn" data-type="boolean" data-topic="P7btn" data-value="false">7</button>
+            <button class="oneShotButton  P6btn" data-type="boolean" data-topic="P6btn" data-value="false">6</button>
+            <button class="oneShotButton  P5btn" data-type="boolean" data-topic="P5btn" data-value="false">5</button>
+            <button class="oneShotButton  P4btn" data-type="boolean" data-topic="P4btn" data-value="false">4</button>
+            <button class="oneShotButton  P3btn" data-type="boolean" data-topic="P3btn" data-value="false">3</button>
+            <button class="oneShotButton  P2btn" data-type="boolean" data-topic="P2btn" data-value="false">2</button>
+            <button class="oneShotButton  SLbtn" data-type="boolean" data-topic="SLbtn" data-value="false">Station
+                Left</button>
+            <button class="oneShotButton  GObtn" data-type="boolean" data-topic="GObtn" data-value="false">GO</button>
+            <button class="oneShotButton  SRbtn" data-type="boolean" data-topic="SRbtn" data-value="false">Station
+                Right</button>
+
+        </div>
+        <button class="actionButton animatedButton L4" data-type="boolean" data-topic="L4btn"
+            data-value="false">L4</button>
+        <button class="actionButton animatedButton L3" data-type="boolean" data-topic="L3btn"
+            data-value="false">L3</button>
+        <button class="actionButton animatedButton L2" data-type="boolean" data-topic="L2btn"
+            data-value="false">L2</button>
+        <button class="actionButton animatedButton L1" data-type="boolean" data-topic="L1btn"
+            data-value="false">L1</button>
+        <button class="actionButton animatedButton intake" data-type="boolean" data-topic="Intake"
+            data-value="false">Intake</button>
+        <button class="actionButton animatedButton revIntake" data-type="boolean" data-topic="RevIntake"
+            data-value="false">Reverse Intake</button>
+        <button class="actionButton animatedButton shoot" data-type="boolean" data-topic="Shoot"
+            data-value="false">Shoot</button>
+        <div class="verticalAxis actuatorAxis" data-topic="ActuatorAxis" data-value="0" data-type="double">
+            <h1 class="axisLabel">Actuator Control</h1>
+            <input class="verticalAxisKnob" type="range" min="-1" max="1" step="0.01" value="0">
+        </div>
+    </div>
+
+    <div class="driverTarget page">
+        <!--Use btnHolder class to give buttons inside div logic-->
+        <!-- <button class="oneShotButton  CLbtn" data-type="boolean" data-topic="CLbtn" data-value="false">CL</button>
+            <button class="oneShotButton  CMbtn" data-type="boolean" data-topic="CMbtn" data-value="false">CM</button>
+            <button class="oneShotButton  CRbtn" data-type="boolean" data-topic="CRbtn" data-value="false">CR</button> -->
+
+        <button class="oneShotButton leftHumanPlay LTbtn" data-type="boolean" data-topic="LTbtn" data-value="false"
+            style="grid-area: LT;">Left Top</button>
+        <button class="oneShotButton leftHumanPlay LMbtn" data-type="boolean" data-topic="LMbtn" data-value="false"
+            style="grid-area: LM;">Left Mid</button>
+        <button class="oneShotButton leftHumanPlay LBbtn" data-type="boolean" data-topic="LBbtn" data-value="false"
+            style="grid-area: LB;">Left Bottom</button>
+
+        <div class="reefPFHolder btnHolder">
+            <button class="oneShotButton  PAbtn" data-type="boolean" data-topic="PAbtn" data-value="false">A</button>
+            <button class="oneShotButton  PBbtn" data-type="boolean" data-topic="PBbtn" data-value="false">B</button>
+            <button class="oneShotButton  PCbtn" data-type="boolean" data-topic="PCbtn" data-value="false">C</button>
+            <button class="oneShotButton  PDbtn" data-type="boolean" data-topic="PDbtn" data-value="false">D</button>
+            <button class="oneShotButton  PEbtn" data-type="boolean" data-topic="PEbtn" data-value="false">E</button>
+            <button class="oneShotButton  PFbtn" data-type="boolean" data-topic="PFbtn" data-value="false">F</button>
+            <button class="oneShotButton  PGbtn" data-type="boolean" data-topic="PGbtn" data-value="false">G</button>
+            <button class="oneShotButton  PHbtn" data-type="boolean" data-topic="PHbtn" data-value="false">H</button>
+            <button class="oneShotButton  PIbtn" data-type="boolean" data-topic="PIbtn" data-value="false">I</button>
+            <button class="oneShotButton  PJbtn" data-type="boolean" data-topic="PJbtn" data-value="false">J</button>
+            <button class="oneShotButton  PKbtn" data-type="boolean" data-topic="PKbtn" data-value="false">K</button>
+            <button class="oneShotButton  PLbtn" data-type="boolean" data-topic="PLbtn" data-value="false">L</button>
+        </div>
+
+        <button class="oneShotButton rightHumanPlay RTbtn" data-type="boolean" data-topic="RTbtn" data-value="false"
+            style="grid-area: RT;">Right Top</button>
+        <button class="oneShotButton rightHumanPlay RMbtn" data-type="boolean" data-topic="RMbtn" data-value="false"
+            style="grid-area: RM;">Right Mid</button>
+        <button class="oneShotButton rightHumanPlay RBbtn" data-type="boolean" data-topic="RBbtn" data-value="false"
+            style="grid-area: RB;">Right Bottom</button>
+
+
+    </div>
 
     <div class="jukeBox pageF">
         <div class="songSelector"></div>
@@ -254,7 +357,6 @@ SOFTWARE. -->
         <div class="prevSongList">&lt</div>
 
     </div>
-
 
     <div class="uiTestTab page">
         <!-- action button sends true as long as it is held -->
@@ -298,14 +400,11 @@ SOFTWARE. -->
             <button class="numberPlus animatedButton">+</button>
         </div>
 
-        <div class="basicSubscription" data-topic="" ><!-- must be the full path -->
+        <div class="basicSubscription" data-topic=""><!-- must be the full path -->
             <h1 class="bSTopic">Topic:</h1>
             <h1 class="bSValue">Value</h1>
         </div>
     </div>
-
-    <!-- Insert tabs before this or between existing tabs before here -->
-
     <script src="./js/ui.js" type="module"></script>
     <script src="./js/autoBuilder.js" type="module"></script>
     <script src="./js/jukebox.js" type="module"></script>
