@@ -419,21 +419,19 @@ if (window.PointerEvent) {
         if (e.pointerType === "touch") {
             const now = Date.now();
             if (now - lastTap < 300) {
-                // double-tap => rotate
+                // double-tap rotate
                 beginRotate(e.clientX);
                 lastTap = 0;
             } else {
-                // single-touch => move
+                // single-touch move
                 beginMove(e.clientX);
                 lastTap = now;
             }
         } else {
-            // mouse or pen: start move; dblclick still handled below for rotate
             beginMove(e.clientX);
         }
     });
 
-    // dblclick for mouse rotate (keeps original behaviour)
     $(".sliderWrapper").on("dblclick", e => {
         e.preventDefault();
         beginRotate(e.clientX);
@@ -546,7 +544,7 @@ if (window.PointerEvent) {
             textElement.setAttribute("text-decoration", "underline");
             textElement.textContent = startRotation + "°";
 
-            $(textElement).off("touchstart").on("touchstart", function(ev) {
+            $(textElement).on("mousedown touchstart", function(ev) {
                 ev.stopPropagation();
                 ev.preventDefault();
                 const currentRotation = startRotation;
