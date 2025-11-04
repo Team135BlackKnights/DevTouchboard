@@ -464,7 +464,7 @@ if (window.PointerEvent) {
             textElement.setAttribute("text-decoration", "underline");
             textElement.textContent = startRotation + "°";
 
-            $(textElement).off("pointerdown").on("pointerdown", function(ev) {
+            $(textElement).on("mousedown touchstart", function(ev) {
                 ev.stopPropagation();
                 ev.preventDefault();
                 const currentRotation = startRotation;
