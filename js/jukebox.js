@@ -27,8 +27,20 @@ let tracks =
     [{
         name: "Megolovania",
         coverArtSRC: "./coverart/undertale.png",
-        robotFileName: "chrp name (goes in deploy btw).chrp",
+        robotFileName: "orchestra/megolovania.chrp",
         played: false // Required for shuffle to work include this 
+    },
+    {
+        name: "Mii Channel Theme",
+        coverArtSRC: "./coverart/miiChannel.jpeg",
+        robotFileName: "orchestra/mii.chrp",
+        played: false
+    },
+    {
+        name: "Rabbit Hole",
+        coverArtSRC: "./coverart/dog.gif",
+        robotFileName: "orchestra/miku.chrp",
+        played: false
     },
         // {
         //     name: "Best song evr",
