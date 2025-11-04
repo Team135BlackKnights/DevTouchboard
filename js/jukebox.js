@@ -42,6 +42,12 @@ let tracks =
         robotFileName: "orchestra/miku.chrp",
         played: false
     },
+    {
+        name: "Spear Of Justice",
+        coverArtSRC: "./coverart/undertale.png",
+        robotFileName: "orchestra/justice.chrp",
+        played: false
+    },
         // {
         //     name: "Best song evr",
         //     coverArtSRC: "./coverArt/bestArtever.png",
