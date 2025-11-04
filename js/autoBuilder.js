@@ -390,17 +390,23 @@ let dragMode = "";
 let startMouseX = 0;
 let startValue = 0;
 let dragStartRotation = 0;
+
+// left-drag to move
 $(".sliderWrapper").on("mousedown", e => {
     e.preventDefault();
+    if (e.button !== 0) return; // only handle left button for move
     startMouseX = e.clientX;
+    dragMode = "move";
+    startValue = parseFloat($slider.val());
+    isDragging = true;
+});
 
-    if (e.button === 0) { // left-drag
-        dragMode = "move";
-        startValue = parseFloat($slider.val());
-    } else if (e.button === 2) { // right-drag
-        dragMode = "rotate";
-        dragStartRotation = startRotation; // store rotation at drag start
-    }
+// double-click to enter rotate mode, then drag to rotate
+$(".sliderWrapper").on("dblclick", e => {
+    e.preventDefault();
+    startMouseX = e.clientX;
+    dragMode = "rotate";
+    dragStartRotation = startRotation; // store rotation at dblclick start
     isDragging = true;
 });
 
