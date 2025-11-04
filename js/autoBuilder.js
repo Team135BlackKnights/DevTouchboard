@@ -384,98 +384,203 @@ $slider.on("input", () => {
 const observer = new MutationObserver(drawPath);
 observer.observe(document.getElementById("orderHolder"), { attributes: true, childList: true, subtree: true });
 
-// Drag logic
+// Improved touch + mouse support for slider/rotation (pointer events when available)
+
 let isDragging = false;
 let dragMode = "";
 let startMouseX = 0;
 let startValue = 0;
 let dragStartRotation = 0;
+let lastTap = 0;
 
-// left-drag to move
-$(".sliderWrapper").on("mousedown", e => {
-    e.preventDefault();
-    if (e.button !== 0) return; // only handle left button for move
-    startMouseX = e.clientX;
+// helper to start move
+function beginMove(clientX) {
+    startMouseX = clientX;
     dragMode = "move";
     startValue = parseFloat($slider.val());
     isDragging = true;
-});
+}
 
-// double-click to enter rotate mode, then drag to rotate
-$(".sliderWrapper").on("dblclick", e => {
-    e.preventDefault();
-    startMouseX = e.clientX;
+// helper to start rotate
+function beginRotate(clientX) {
+    startMouseX = clientX;
     dragMode = "rotate";
-    dragStartRotation = startRotation; // store rotation at dblclick start
+    dragStartRotation = startRotation;
     isDragging = true;
-});
+}
 
-$(document).on("mousemove", e => {
-    if (!isDragging) return;
-    const deltaX = e.clientX - startMouseX;
+// pointer-based implementation (preferred)
+if (window.PointerEvent) {
+    $(".sliderWrapper").on("pointerdown", e => {
+        // Only accept left mouse or touch/pen
+        if (e.pointerType === "mouse" && e.button !== 0) return;
+        e.preventDefault();
 
-    if (dragMode === "move") {
-        let newVal = startValue + deltaX;
-        newVal = Math.max(100, Math.min(1446.5998, newVal));
-        $slider.val(newVal).trigger("input");
-    } else if (dragMode === "rotate") {
-        // Calculate rotation relative to drag start
-        let rawRotation = dragStartRotation + deltaX * 0.5;
-
-        // Round rotation to nearest multiple of 5°
-        startRotation = Math.round(rawRotation / 5) * 5;
-        //Wrap rotation to -180 to 180, for example 190° becomes -170°
-        if (startRotation > 180) {
-            startRotation -= 360;
-        } else if (startRotation < -180) {
-            startRotation += 360;
-        }
-        $(".rotationText").remove();
-
-        const textElement = document.createElementNS(svgNS, "text");
-        textElement.setAttribute("class", "rotationText");
-        textElement.setAttribute("x", "20");
-        textElement.setAttribute("y", "65");
-        textElement.setAttribute("fill", "#ffffff");
-        textElement.setAttribute("font-size", "60");
-        textElement.setAttribute("font-family", "Arial, sans-serif");
-        textElement.setAttribute("pointer-events", "all"); // Make it clickable
-        textElement.setAttribute("cursor", "pointer");
-        textElement.setAttribute("text-decoration", "underline");
-        textElement.textContent = startRotation + "°";
-        
-        // Add click handler for setting rotation
-        $(textElement).on("click", function(e) {
-            e.stopPropagation(); // Prevent other click handlers
-            
-            const currentRotation = startRotation;
-            const newRotation = prompt(`Enter rotation (current: ${currentRotation}°):`, currentRotation);
-            
-            if (newRotation !== null && !isNaN(newRotation)) {
-                const rotation = parseInt(newRotation);
-                // Optional: constrain to reasonable range
-                const constrainedRotation = Math.max(-180, Math.min(180, rotation));
-                startRotation = Math.round(constrainedRotation) // Round to nearest 5°
-                
-                // Update the text
-                textElement.textContent = startRotation + "°";
-                
-                // Update the visual representation
-                updateThumb();
-                drawPath();
+        if (e.pointerType === "touch") {
+            const now = Date.now();
+            if (now - lastTap < 300) {
+                // double-tap => rotate
+                beginRotate(e.clientX);
+                lastTap = 0;
+            } else {
+                // single-touch => move
+                beginMove(e.clientX);
+                lastTap = now;
             }
-        });
-        
-        // Append to SVG
-        $(".autoMap")[0].appendChild(textElement);
-        updateThumb();
-        drawPath();
-    }
-});
+        } else {
+            // mouse or pen: start move; dblclick still handled below for rotate
+            beginMove(e.clientX);
+        }
+    });
 
-$(document).on("mouseup", () => {
-    isDragging = false;
-});
+    // dblclick for mouse rotate (keeps original behaviour)
+    $(".sliderWrapper").on("dblclick", e => {
+        e.preventDefault();
+        beginRotate(e.clientX);
+    });
+
+    $(document).on("pointermove", e => {
+        if (!isDragging) return;
+        const deltaX = e.clientX - startMouseX;
+
+        if (dragMode === "move") {
+            let newVal = startValue + deltaX;
+            newVal = Math.max(100, Math.min(1446.5998, newVal));
+            $slider.val(newVal).trigger("input");
+        } else if (dragMode === "rotate") {
+            let rawRotation = dragStartRotation - deltaX * 0.5;
+            startRotation = Math.round(rawRotation / 5) * 5;
+            if (startRotation > 180) startRotation -= 360;
+            else if (startRotation < -180) startRotation += 360;
+            $(".rotationText").remove();
+
+            const textElement = document.createElementNS(svgNS, "text");
+            textElement.setAttribute("class", "rotationText");
+            textElement.setAttribute("x", "20");
+            textElement.setAttribute("y", "65");
+            textElement.setAttribute("fill", "#ffffff");
+            textElement.setAttribute("font-size", "60");
+            textElement.setAttribute("font-family", "Arial, sans-serif");
+            textElement.setAttribute("pointer-events", "all");
+            textElement.setAttribute("cursor", "pointer");
+            textElement.setAttribute("text-decoration", "underline");
+            textElement.textContent = startRotation + "°";
+
+            $(textElement).off("pointerdown").on("pointerdown", function(ev) {
+                ev.stopPropagation();
+                ev.preventDefault();
+                const currentRotation = startRotation;
+                const newRotation = prompt(`Enter rotation (current: ${currentRotation}°):`, currentRotation);
+                if (newRotation !== null && !isNaN(newRotation)) {
+                    const rotation = parseInt(newRotation);
+                    const constrainedRotation = Math.max(-180, Math.min(180, rotation));
+                    startRotation = Math.round(constrainedRotation);
+                    textElement.textContent = startRotation + "°";
+                    updateThumb();
+                    drawPath();
+                }
+            });
+
+            $(".autoMap")[0].appendChild(textElement);
+            updateThumb();
+            drawPath();
+        }
+    });
+
+    $(document).on("pointerup pointercancel", () => {
+        isDragging = false;
+    });
+
+} else {
+    // Fallback for browsers without PointerEvent: use mouse + touch events
+
+    // Touch: double-tap detection for rotate
+    $(".sliderWrapper").on("touchstart", function(e) {
+        e.preventDefault();
+        const touch = e.changedTouches[0];
+        const now = Date.now();
+        if (now - lastTap < 300) {
+            beginRotate(touch.clientX);
+            lastTap = 0;
+        } else {
+            beginMove(touch.clientX);
+            lastTap = now;
+        }
+    });
+
+    $(".sliderWrapper").on("mousedown", function(e) {
+        e.preventDefault();
+        if (e.button !== 0) return;
+        beginMove(e.clientX);
+    });
+
+    $(".sliderWrapper").on("dblclick", function(e) {
+        e.preventDefault();
+        beginRotate(e.clientX);
+    });
+
+    $(document).on("touchmove", function(e) {
+        if (!isDragging) return;
+        const touch = e.changedTouches[0];
+        const deltaX = touch.clientX - startMouseX;
+        if (dragMode === "move") {
+            let newVal = startValue + deltaX;
+            newVal = Math.max(100, Math.min(1446.5998, newVal));
+            $slider.val(newVal).trigger("input");
+        } else if (dragMode === "rotate") {
+            let rawRotation = dragStartRotation + deltaX * 0.5;
+            startRotation = Math.round(rawRotation / 5) * 5;
+            if (startRotation > 180) startRotation -= 360;
+            else if (startRotation < -180) startRotation += 360;
+            $(".rotationText").remove();
+
+            const textElement = document.createElementNS(svgNS, "text");
+            textElement.setAttribute("class", "rotationText");
+            textElement.setAttribute("x", "20");
+            textElement.setAttribute("y", "65");
+            textElement.setAttribute("fill", "#ffffff");
+            textElement.setAttribute("font-size", "60");
+            textElement.setAttribute("font-family", "Arial, sans-serif");
+            textElement.setAttribute("pointer-events", "all");
+            textElement.setAttribute("cursor", "pointer");
+            textElement.setAttribute("text-decoration", "underline");
+            textElement.textContent = startRotation + "°";
+
+            $(textElement).off("touchstart").on("touchstart", function(ev) {
+                ev.stopPropagation();
+                ev.preventDefault();
+                const currentRotation = startRotation;
+                const newRotation = prompt(`Enter rotation (current: ${currentRotation}°):`, currentRotation);
+                if (newRotation !== null && !isNaN(newRotation)) {
+                    const rotation = parseInt(newRotation);
+                    const constrainedRotation = Math.max(-180, Math.min(180, rotation));
+                    startRotation = Math.round(constrainedRotation);
+                    textElement.textContent = startRotation + "°";
+                    updateThumb();
+                    drawPath();
+                }
+            });
+
+            $(".autoMap")[0].appendChild(textElement);
+            updateThumb();
+            drawPath();
+        }
+    });
+
+    $(document).on("mousemove", function(e) {
+        if (!isDragging) return;
+        const deltaX = e.clientX - startMouseX;
+        if (dragMode === "move") {
+            let newVal = startValue + deltaX;
+            newVal = Math.max(100, Math.min(1446.5998, newVal));
+            $slider.val(newVal).trigger("input");
+        }
+    });
+
+    $(document).on("touchend mouseup touchcancel", function() {
+        isDragging = false;
+    });
+}
 
 // Initialize
 updateThumb();
