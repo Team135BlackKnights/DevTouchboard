@@ -145,6 +145,33 @@ function populateCommands() {
     }
 }
 
+function resolvePoseId(displayText) {
+    if (displayText == null) {
+        return ""
+    }
+    const trimmed = String(displayText).trim()
+    if (trimmed.length === 0) {
+        return ""
+    }
+    if (document.getElementById("pose" + trimmed)) {
+        return trimmed
+    }
+    if (trimmed.endsWith("A")) {
+        const base = trimmed.slice(0, -1)
+        if (document.getElementById("pose" + base)) {
+            return base
+        }
+    }
+    return ""
+}
+
+function assignPoseMetadata($orderedElement, displayText) {
+    const poseId = resolvePoseId(displayText)
+    if (poseId) {
+        $orderedElement.attr("data-pose", poseId)
+    }
+}
+
 $(".commandTitle").on("click", () => {
     $(".commands").toggleClass("commandName")
     populateCommands()
@@ -235,9 +262,22 @@ for (let i = 0; i < $pbt.length; i++) {
     let eq$ = $pbt.eq(i)
 
     eq$.on("mousedown touchstart", (event) => {
+        const isMouse = event.type === "mousedown"
+        const isRightClick = isMouse && event.button === 2
+        const isLeftClick = isMouse && event.button === 0
+        const isTouch = event.type === "touchstart"
+
+        if (!isRightClick && !isLeftClick && !isTouch) {
+            return
+        }
+
         event.preventDefault()
 
-        let $cr = $("<div>").addClass("ordered").text(eq$.attr("data-pose")).appendTo(".orderHolder").on("mousedown touchstart", (event) => {
+        const basePose = eq$.attr("data-pose")
+        const shouldAppendA = isRightClick && /^\d+$/.test(basePose)
+        const displayText = shouldAppendA ? basePose + "A" : basePose
+
+        let $cr = $("<div>").addClass("ordered").text(displayText).appendTo(".orderHolder").on("mousedown touchstart", (event) => {
             let $ct = event.currentTarget
             currentTimeout = setTimeout(() => {
                 currentDragFrom = $ct
@@ -304,6 +344,8 @@ for (let i = 0; i < $pbt.length; i++) {
                 eq$.css("transition", '')
             }, 500);
         }, 10);
+
+        assignPoseMetadata($cr, displayText)
     })
 
 }
@@ -339,7 +381,14 @@ function drawPath() {
     const $oH = document.getElementsByClassName("ordered");
     for (let i = 0; i < $oH.length; i++) {
         const $eq = $($oH[i]);
-        const $po = $("#pose" + $eq.text());
+        const poseId = $eq.attr("data-pose") || resolvePoseId($eq.text());
+        if (poseId && !$eq.attr("data-pose")) {
+            $eq.attr("data-pose", poseId)
+        }
+        if (!poseId) {
+            continue
+        }
+        const $po = $("#pose" + poseId);
         if ($po.attr("data-x")) {
             lineTo(parseFloat($po.attr("data-x")) + (179.749980769 / 2),
                 parseFloat($po.attr("data-y")) + (179.749980769 / 2));
@@ -712,6 +761,7 @@ export function setFromString(string) {
         }).on("touchcancel", () => {
             clearTimeout(currentTimeout)
         })
+        assignPoseMetadata($cr, stringArr[i])
         $(".orderHolder").scrollLeft($(".orderHolder")[0].scrollWidth)
 
         // if($(".multiSwitch").attr("data-value") == "Simultaneous"){
