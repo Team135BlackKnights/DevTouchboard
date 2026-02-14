@@ -1,846 +1,627 @@
-// MIT License
+import { nt4Client, currentConnected } from "./ui.js";
 
-// Copyright (c) 2025 Tigerbots
+// -------------------- Field + Robot constants --------------------
+const FIELD = {
+  width: 8.0692,     // meters (y in WPI field coords)
+  halfLength: 8.2705 // meters (x from BLUE wall to center line)
+};
 
-// Permission is hereby granted, free of charge, to any person obtaining a copy
-// of this software and associated documentation files (the "Software"), to deal
-// in the Software without restriction, including without limitation the rights
-// to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-// copies of the Software, and to permit persons to whom the Software is
-// furnished to do so, subject to the following conditions:
+const ROBOT = {
+  width: 0.962,      // meters
+  length: 0.834,     // meters
+  rearGap: 0.254     // 10 inches in meters
+};
 
-// The above copyright notice and this permission notice shall be included in all
-// copies or substantial portions of the Software.
+const START_POSES = {
+  LEFT:   { x: 4.398, y: 0.475, headingDeg: 0 },
+  CENTER: { x: 3.62, y: 4.0346, headingDeg: 0 },
+  RIGHT:  { x: 4.398, y: 7.586, headingDeg: 0 }
+};
 
-// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-// IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-// FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-// AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-// LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-// OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-// SOFTWARE. 
+// -------------------- DOM --------------------
+const orderHolder = document.querySelector(".orderHolder");
+const savedDropdown = document.querySelector(".savedDropdown");
+const finalStringPre = document.querySelector(".finalString");
 
-const svgNS = "http://www.w3.org/2000/svg";
+const saveNameInput = document.querySelector(".saveName");
+const saveBtn = document.querySelector(".save");
+const deleteBtn = document.querySelector(".delete");
+const clearBtn = document.querySelector(".clear");
+const sendBtn = document.querySelector(".send");
 
-let commandList = [
-    {
-        name: 'Test', // name whatever
-        value: 'LR', //max 2 characters, can be anything, used by the robot to determine what to do
-    },
-    // {
-    //     name: '*command',
-    //     value: '*value',
-    // }, ... 
+const startBtns = Array.from(document.querySelectorAll(".startBtn"));
+const startMarkers = Array.from(document.querySelectorAll(".startMarker"));
+const zones = Array.from(document.querySelectorAll(".zone"));
 
-]
+const plannedPath = document.getElementById("plannedPath");
+const waypointsG = document.getElementById("waypoints");
+const robotOutline = document.getElementById("robotOutline");
 
-import { nt4Client } from "./ui.js"
+const paramModal = document.getElementById("paramModal");
+const paramTitle = document.getElementById("paramModalTitle");
+const paramSelect = document.getElementById("paramModalSelect");
+const paramCancel = document.getElementById("paramModalCancel");
+const paramOk = document.getElementById("paramModalOk");
 
-
-function alongPath(angle, radius, xposLocal = 750, yposLocal = 750,) {
-    //stolen from 3dNgyn.js from 3dsnake that i made
-    angle -= 90
-    var Y = yposLocal + ((Math.sin(angle * Math.PI / 180) * radius));
-    var X = xposLocal + (Math.cos(angle * Math.PI / 180) * radius)
-    // console.log(" " + X + "," + Y + " ")
-    return {
-        point: " " + X + "," + Y + " ",
-        x: X,
-        y: Y,
-    }
+let toastHost = document.getElementById("toastHost");
+if (!toastHost) {
+  toastHost = document.createElement("div");
+  toastHost.id = "toastHost";
+  toastHost.className = "toastHost";
+  document.body.appendChild(toastHost);
 }
 
-multiSwitchButtonEvent()
-function multiSwitchButtonEvent() {
-    $(".multiSwitchButton").off()
-    $(".multiSwitchButton").on("click", (event) => {
-        let leftOffset = $(event.target).offset().left - $(event.target).parent().offset().left
-        $(event.target).parent().find(".multiSliding").css("margin-left", leftOffset + "px")
-        $(event.target).parent().attr("data-value", $(event.target).val())
-    })
+// -------------------- State --------------------
+let currentStart = "CENTER";
+let selectedSaveIndex = -1;
+let pendingModalResolve = null;
+
+// -------------------- Utils --------------------
+function clampInt(n, lo, hi) {
+  const v = Math.round(Number(n));
+  if (Number.isNaN(v)) return lo;
+  return Math.max(lo, Math.min(hi, v));
 }
 
-
-let $pbt = $(".poseBTN")
-let currentTimeout = false
-let currentDragFrom = ""
-let currentDragTo = ""
-let currentDragStarted
-let startDragX = 0
-let mouseIsDown = false
-let initalLeft
-let paths
-populateCommands()
-function populateCommands() {
-    $(".commandHolder").empty()
-    for (let i = 0; i < commandList.length; i++) {
-
-        let newElem = $("<h2>").addClass("commandOptionNamed").text(commandList[i].name).appendTo('.commandHolder').on('click', () => {
-            $(".poseSelectorTitle").text("Saved")
-
-            let $cr = $("<div>").addClass("ordered").text(commandList[i].value).appendTo(".orderHolder").on("mousedown touchstart", (event) => {
-                let $ct = event.currentTarget
-                currentTimeout = setTimeout(() => {
-                    currentDragFrom = $ct
-
-                    if (event.pageX == null) {
-                        startDragX = event.changedTouches[0].pageX
-                    } else {
-                        startDragX = event.pageX
-                    }
-                    initalLeft = $(currentDragFrom).offset().left
-                    $($ct).addClass("orderedPhase").css("left", startDragX - ($($ct).width() / 2) + "px")
-                    $($ct).next().addClass("orderedGap")
-                    setTimeout(() => {
-                        $(".ordered").addClass("orderedTransition")
-
-                    }, 10);
-                    $(".ordered").css("background-color", "#7300ff55")
-
-                }, 200);
-                currentDragStarted = false
-                mouseIsDown = true
-
-            }).on("mouseup touchend", (event) => {
-                clearTimeout(currentTimeout)
-
-                if (currentDragStarted) {
-
-                    $(".ordered").removeClass("orderedTransition")
-
-                    $(currentDragFrom).removeClass("orderedPhase")
-                    $(".orderedGap").removeClass("orderedGap").removeClass("orderedGapLeft")
-                    $(".orderedGapLeft").removeClass("orderedGap").removeClass("orderedGapLeft")
-
-                    mouseIsDown = false
-
-                    $(".ordered").css("left", "0px")
-
-                    currentDragFrom = ""
-                    currentDragTo = ""
-                    $(".ordered").css("background-color", "rgb(12, 12, 12)")
-
-                } else {
-                    $(".ordered").removeClass("orderedTransition").css("left", "0px").removeClass("orderedGap").removeClass("orderedLeft").removeClass("orderedPhase")
-                }
-            }).on("click", (event) => {
-                event.preventDefault()
-                if (!currentDragStarted) {
-                    $($cr).remove()
-                }
-            }).on("touchcancel", () => {
-                clearTimeout(currentTimeout)
-            })
-            $(".orderHolder").scrollLeft($(".orderHolder")[0].scrollWidth)
-            if ($(".multiSwitch").attr("data-value") == "Sync") {
-                $cr.text(commandList[i].value + "+")
-            }
-
-
-        })
-
-        if (!$(".commands").hasClass("commandName")) {
-            newElem.text(commandList[i].value).removeClass("commandOptionNamed").addClass("commandOption")
-        }
-    }
+// WPI field coords (x forward from BLUE, y left->right)
+// -> SVG coords (x right, y down) for our "blue up" half-field view:
+//   xSvg = y
+//   ySvg = halfLength - x
+function fieldToSvg(pt) {
+  return { x: pt.y, y: FIELD.halfLength - pt.x };
 }
 
-function resolvePoseId(displayText) {
-    if (displayText == null) {
-        return ""
-    }
-    const trimmed = String(displayText).trim()
-    if (trimmed.length === 0) {
-        return ""
-    }
-    if (document.getElementById("pose" + trimmed)) {
-        return trimmed
-    }
-    if (trimmed.endsWith("A")) {
-        const base = trimmed.slice(0, -1)
-        if (document.getElementById("pose" + base)) {
-            return base
-        }
-    }
-    return ""
+function fmt(n, digits = 3) {
+  return Number(n).toFixed(digits).replace(/\.?0+$/, "");
 }
 
-function assignPoseMetadata($orderedElement, displayText) {
-    const poseId = resolvePoseId(displayText)
-    if (poseId) {
-        $orderedElement.attr("data-pose", poseId)
-    }
+function toast(msg, kind = "ok") {
+  const el = document.createElement("div");
+  el.className = `toast ${kind}`;
+  el.textContent = msg;
+  toastHost.appendChild(el);
+  requestAnimationFrame(() => el.classList.add("show"));
+  setTimeout(() => {
+    el.classList.remove("show");
+    setTimeout(() => el.remove(), 180);
+  }, 1100);
 }
 
-$(".commandTitle").on("click", () => {
-    $(".commands").toggleClass("commandName")
-    populateCommands()
-})
-
-
-startMovin()
-function startMovin(initX, initY) {
-    $("html").on("touchmove mousemove", (event) => {
-        if (currentDragFrom !== "") {
-            let x
-            let y
-            if (x == null) {
-                if (event.pageX == null) {
-                    y = event.changedTouches[0].pageY
-                    x = event.changedTouches[0].pageX
-                } else {
-                    y = event.pageY
-                    x = event.pageX
-                }
-            }
-            let $cL = $(document.elementsFromPoint($(currentDragFrom).offset().left, $(currentDragFrom).offset().top))
-            let $cR = $(document.elementsFromPoint($(currentDragFrom).offset().left + $(currentDragFrom).width(), $(currentDragFrom).offset().top))
-            let $cG = $("eee")
-            for (let i = 0; i < $cR.length; i++) {
-                if ($cR.eq(i).hasClass("ordered") && !($cR.eq(i).hasClass("orderedPhase"))) {
-                    $cG = $cR.eq(i)
-                    break
-                }
-            }
-            let $ce = $("eee")
-            for (let i = 0; i < $cL.length; i++) {
-                if ($cL.eq(i).hasClass("ordered") && !($cL.eq(i).hasClass("orderedPhase"))) {
-                    $ce = $cL.eq(i)
-                    break
-                }
-            }
-            if (mouseIsDown) {
-                $(".orderedPhase").css("left", x - ($(".orderedPhase").width() / 2) + "px")
-            }
-            if ($ce.hasClass("ordered") && currentDragFrom !== "") {
-                currentDragStarted = true
-
-
-                currentDragTo = $ce
-                if (initalLeft < $(currentDragTo).offset().left) {
-
-                    $(".orderedGap").removeClass("orderedGap")
-
-                    $(currentDragFrom).insertAfter(currentDragTo)
-                    if ($ce.next().hasClass("orderedPhase")) {
-                        $ce.next().next().addClass("orderedGap")
-                    } else {
-                        $ce.next().addClass("orderedGap")
-                    }
-                    // $(currentDragFrom).css("background-color", "yellow")
-                    // $(currentDragTo).css("background-color", "blue")
-                    setTimeout(() => {
-                        initalLeft = $(currentDragFrom).offset().left
-
-                    }, 30);
-
-                } else if (initalLeft > $(currentDragTo).offset().left && $(currentDragFrom).offset().left + $(currentDragFrom).width() < $(currentDragTo).offset().left + $(currentDragTo).width()) {
-
-                    $(currentDragFrom).insertBefore(currentDragTo)
-
-                    $(".orderedGap").removeClass("orderedGap")
-                    $cG.addClass("orderedGap")
-                    // $(currentDragFrom).css("background-color", "yellow")
-                    // $(currentDragTo).css("background-color", "purple")
-                    setTimeout(() => {
-                        initalLeft = $(currentDragFrom).offset().left
-
-                    }, 30);
-
-                }
-                // console.log($(currentDragTo).offset().left+ $(".ordered").width() + " > " + $(currentDragFrom).offset().left)
-
-                // currentDragTo = ""
-            }
-        }
-    })
-
+function pulseSend() {
+  if (!sendBtn) return;
+  sendBtn.classList.remove("sendPulse");
+  // force reflow
+  void sendBtn.offsetWidth;
+  sendBtn.classList.add("sendPulse");
+  if (navigator.vibrate) navigator.vibrate(35);
 }
 
-
-for (let i = 0; i < $pbt.length; i++) {
-    let eq$ = $pbt.eq(i)
-
-    eq$.on("mousedown touchstart", (event) => {
-        const isMouse = event.type === "mousedown"
-        const isRightClick = isMouse && event.button === 2
-        const isLeftClick = isMouse && event.button === 0
-        const isTouch = event.type === "touchstart"
-
-        if (!isRightClick && !isLeftClick && !isTouch) {
-            return
-        }
-
-        event.preventDefault()
-
-        const basePose = eq$.attr("data-pose")
-        const shouldAppendA = isRightClick && /^\d+$/.test(basePose)
-        const displayText = shouldAppendA ? basePose + "A" : basePose
-
-        let $cr = $("<div>").addClass("ordered").text(displayText).appendTo(".orderHolder").on("mousedown touchstart", (event) => {
-            let $ct = event.currentTarget
-            currentTimeout = setTimeout(() => {
-                currentDragFrom = $ct
-
-                if (event.pageX == null) {
-                    startDragX = event.changedTouches[0].pageX
-                } else {
-                    startDragX = event.pageX
-                }
-                initalLeft = $(currentDragFrom).offset().left
-                $($ct).addClass("orderedPhase").css("left", startDragX - ($($ct).width() / 2) + "px")
-                $($ct).next().addClass("orderedGap")
-                setTimeout(() => {
-                    $(".ordered").addClass("orderedTransition")
-
-                }, 10);
-                $(".ordered").css("background-color", "#7300ff55")
-
-            }, 200);
-            currentDragStarted = false
-            mouseIsDown = true
-
-        }).on("mouseup touchend mouseleave", (event) => {
-            clearTimeout(currentTimeout)
-
-            if (currentDragStarted) {
-
-                $(".ordered").removeClass("orderedTransition")
-
-                $(currentDragFrom).removeClass("orderedPhase")
-                $(".orderedGap").removeClass("orderedGap").removeClass("orderedGapLeft")
-                $(".orderedGapLeft").removeClass("orderedGap").removeClass("orderedGapLeft")
-
-                mouseIsDown = false
-
-                $(".ordered").css("left", "0px")
-
-                currentDragFrom = ""
-                currentDragTo = ""
-                $(".ordered").css("background-color", "rgb(12, 12, 12)")
-
-            } else {
-                $(".ordered").removeClass("orderedTransition").css("left", "0px").removeClass("orderedGap").removeClass("orderedLeft").removeClass("orderedPhase")
-            }
-        }).on("click", (event) => {
-            event.preventDefault()
-            if (!currentDragStarted) {
-                $($cr).remove()
-            }
-        }).on("touchcancel", () => {
-            clearTimeout(currentTimeout)
-        })
-        $(".orderHolder").scrollLeft($(".orderHolder")[0].scrollWidth)
-
-        // if($(".multiSwitch").attr("data-value") == "Simultaneous"){
-        //     $cr.text(eq$.attr("data-pose") + "S")
-        // }
-
-        eq$.css("fill", "#7300ff")
-        eq$.offset()
-        setTimeout(() => {
-            eq$.css('fill', "#333333").css("transition", '500ms ease fill')
-            setTimeout(() => {
-                eq$.css("transition", '')
-            }, 500);
-        }, 10);
-
-        assignPoseMetadata($cr, displayText)
-    })
-
+function stepLabel(step) {
+  switch (step.type) {
+    case "CHUTE":
+      return `Chute (at ${step.atSecondsRemaining}s remaining)`;
+    case "DEPOT":
+      return `Depot (at ${step.atSecondsRemaining}s remaining)`;
+    case "INTAKE":
+      return `Intake (until ${step.untilSecondsRemaining}s remaining)`;
+    case "TRENCH":
+      return `Trench (${step.choice} at ${step.atSecondsRemaining}s remaining)`;
+    case "HANG":
+      return `Hang (at ${step.atSecondsRemaining}s remaining)`;
+    default:
+      return step.type;
+  }
 }
 
-const $slider = $(".startPos");
-const $thumb = $(".thumb");
+function showModal({ title, options, defaultValue }) {
+  paramTitle.textContent = title;
+  paramSelect.innerHTML = "";
+  for (const opt of options) {
+    const o = document.createElement("option");
+    o.value = String(opt.value);
+    o.textContent = opt.label;
+    paramSelect.appendChild(o);
+  }
+  paramSelect.value = String(defaultValue);
 
-let finishedPath = "";
-let startRotation = 90;
+  paramModal.classList.remove("hidden");
 
-// Update thumb position and rotation
-function updateThumb() {
-    const val = parseFloat($slider.val());
-    $thumb.css({
-        left: val - $thumb.width() + 15 + "px",
-        transform: `rotate(${-(startRotation-180)}deg)`
-    });
+  return new Promise((resolve) => {
+    pendingModalResolve = resolve;
+  });
 }
 
-// Draw path and arrow
-function drawPath() {
-    const aPSVG = $(".autoMap");
-    $(".currentPath").remove();
-    $(".arrowHead").remove();
-    //in the top left, add a little text showing the degrees
-
-    const pathElm = $(document.createElementNS(svgNS, 'path')).appendTo(aPSVG).addClass("currentPath");
-    pathElm.css({ stroke: '#ffffffee', fill: 'none', 'stroke-width': '30' });
-    finishedPath = "";
-
-    moveTo($slider.val(), 330);
-
-    const $oH = document.getElementsByClassName("ordered");
-    for (let i = 0; i < $oH.length; i++) {
-        const $eq = $($oH[i]);
-        const poseId = $eq.attr("data-pose") || resolvePoseId($eq.text());
-        if (poseId && !$eq.attr("data-pose")) {
-            $eq.attr("data-pose", poseId)
-        }
-        if (!poseId) {
-            continue
-        }
-        const $po = $("#pose" + poseId);
-        if ($po.attr("data-x")) {
-            lineTo(parseFloat($po.attr("data-x")) + (179.749980769 / 2),
-                parseFloat($po.attr("data-y")) + (179.749980769 / 2));
-        }
-    }
-
-    pathElm.attr("d", finishedPath);
-
-    // Arrow head at start position
-    const arrowHead = $(document.createElementNS(svgNS, 'polygon')).appendTo(aPSVG).addClass("arrowHead");
-    arrowHead.css("fill", '#d45656ff');
-    const arrowSize = 20;
-    const startX = parseFloat($slider.val()) - 15;
-    const startY = 330;
-    const arrowPoints = [
-        `${startX},${startY}`,
-        `${startX + arrowSize},${startY - arrowSize * 2}`,
-        `${startX - arrowSize},${startY - arrowSize * 2}`
-    ].join(" ");
-    //rotate arrowHead
-    const angle = -(startRotation-180) * (Math.PI / 180); // Convert degrees to radians
-    const centerX = startX;
-    const centerY = startY - arrowSize; // Center of rotation
-    const rotatedPoints = arrowPoints.split(" ").map(point => {
-        const [x, y] = point.split(",").map(Number);
-        const newX = centerX + (x - centerX) * Math.cos(angle) - (y - centerY) * Math.sin(angle);
-        const newY = centerY + (x - centerX) * Math.sin(angle) + (y - centerY) * Math.cos(angle);
-        return `${newX},${newY}`;
-    }).join(" ");
-    arrowHead.attr("points", rotatedPoints);
-
-
+function hideModal() {
+  paramModal.classList.add("hidden");
+  pendingModalResolve = null;
 }
 
-// Slider input
-$slider.on("input", () => {
-    updateThumb();
-    drawPath();
+paramCancel?.addEventListener("click", () => {
+  if (pendingModalResolve) pendingModalResolve(null);
+  hideModal();
 });
 
-// Observe changes to ordered elements
-const observer = new MutationObserver(drawPath);
-observer.observe(document.getElementById("orderHolder"), { attributes: true, childList: true, subtree: true });
+paramOk?.addEventListener("click", () => {
+  if (pendingModalResolve) pendingModalResolve(paramSelect.value);
+  hideModal();
+});
 
-// Improved touch + mouse support for slider/rotation (pointer events when available)
+paramModal?.addEventListener("click", (e) => {
+  if (e.target === paramModal) {
+    if (pendingModalResolve) pendingModalResolve(null);
+    hideModal();
+  }
+});
 
-let isDragging = false;
-let dragMode = "";
-let startMouseX = 0;
-let startValue = 0;
-let dragStartRotation = 0;
-let lastTap = 0;
-
-// helper to start move
-function beginMove(clientX) {
-    startMouseX = clientX;
-    dragMode = "move";
-    startValue = parseFloat($slider.val());
-    isDragging = true;
+// -------------------- Plan model --------------------
+function getStoredPlans() {
+  const raw = localStorage.getItem("paths2026");
+  if (!raw) return [];
+  try {
+    const parsed = JSON.parse(raw);
+    return Array.isArray(parsed) ? parsed : [];
+  } catch {
+    return [];
+  }
 }
 
-// helper to start rotate
-function beginRotate(clientX) {
-    startMouseX = clientX;
-    dragMode = "rotate";
-    dragStartRotation = startRotation;
-    isDragging = true;
+function setStoredPlans(plans) {
+  localStorage.setItem("paths2026", JSON.stringify(plans));
 }
 
-// pointer-based implementation (preferred)
-if (window.PointerEvent) {
-    $(".sliderWrapper").on("pointerdown", e => {
-        // Only accept left mouse or touch/pen
-        if (e.pointerType === "mouse" && e.button !== 0) return;
-        e.preventDefault();
-
-        if (e.pointerType === "touch") {
-            const now = Date.now();
-            if (now - lastTap < 300) {
-                // double-tap rotate
-                beginRotate(e.clientX);
-                lastTap = 0;
-            } else {
-                // single-touch move
-                beginMove(e.clientX);
-                lastTap = now;
-            }
-        } else {
-            beginMove(e.clientX);
-        }
-    });
-
-    $(".sliderWrapper").on("dblclick", e => {
-        e.preventDefault();
-        beginRotate(e.clientX);
-    });
-
-    $(document).on("pointermove", e => {
-        if (!isDragging) return;
-        const deltaX = e.clientX - startMouseX;
-
-        if (dragMode === "move") {
-            let newVal = startValue + deltaX;
-            newVal = Math.max(100, Math.min(1446.5998, newVal));
-            $slider.val(newVal).trigger("input");
-        } else if (dragMode === "rotate") {
-            let rawRotation = dragStartRotation - deltaX * 0.5;
-            startRotation = Math.round(rawRotation / 5) * 5;
-            if (startRotation > 180) startRotation -= 360;
-            else if (startRotation < -180) startRotation += 360;
-            $(".rotationText").remove();
-
-            const textElement = document.createElementNS(svgNS, "text");
-            textElement.setAttribute("class", "rotationText");
-            textElement.setAttribute("x", "20");
-            textElement.setAttribute("y", "65");
-            textElement.setAttribute("fill", "#ffffff");
-            textElement.setAttribute("font-size", "60");
-            textElement.setAttribute("font-family", "Arial, sans-serif");
-            textElement.setAttribute("pointer-events", "all");
-            textElement.setAttribute("cursor", "pointer");
-            textElement.setAttribute("text-decoration", "underline");
-            textElement.textContent = startRotation + "°";
-
-            $(textElement).on("mousedown touchstart", function(ev) {
-                ev.stopPropagation();
-                ev.preventDefault();
-                const currentRotation = startRotation;
-                const newRotation = prompt(`Enter rotation (current: ${currentRotation}°):`, currentRotation);
-                if (newRotation !== null && !isNaN(newRotation)) {
-                    const rotation = parseInt(newRotation);
-                    const constrainedRotation = Math.max(-180, Math.min(180, rotation));
-                    startRotation = Math.round(constrainedRotation);
-                    textElement.textContent = startRotation + "°";
-                    updateThumb();
-                    drawPath();
-                }
-            });
-
-            $(".autoMap")[0].appendChild(textElement);
-            updateThumb();
-            drawPath();
-        }
-    });
-
-    $(document).on("pointerup pointercancel", () => {
-        isDragging = false;
-    });
-
-} else {
-    // Fallback for browsers without PointerEvent: use mouse + touch events
-
-    // Touch: double-tap detection for rotate
-    $(".sliderWrapper").on("touchstart", function(e) {
-        e.preventDefault();
-        const touch = e.changedTouches[0];
-        const now = Date.now();
-        if (now - lastTap < 300) {
-            beginRotate(touch.clientX);
-            lastTap = 0;
-        } else {
-            beginMove(touch.clientX);
-            lastTap = now;
-        }
-    });
-
-    $(".sliderWrapper").on("mousedown", function(e) {
-        e.preventDefault();
-        if (e.button !== 0) return;
-        beginMove(e.clientX);
-    });
-
-    $(".sliderWrapper").on("dblclick", function(e) {
-        e.preventDefault();
-        beginRotate(e.clientX);
-    });
-
-    $(document).on("touchmove", function(e) {
-        if (!isDragging) return;
-        const touch = e.changedTouches[0];
-        const deltaX = touch.clientX - startMouseX;
-        if (dragMode === "move") {
-            let newVal = startValue + deltaX;
-            newVal = Math.max(100, Math.min(1446.5998, newVal));
-            $slider.val(newVal).trigger("input");
-        } else if (dragMode === "rotate") {
-            let rawRotation = dragStartRotation + deltaX * 0.5;
-            startRotation = Math.round(rawRotation / 5) * 5;
-            if (startRotation > 180) startRotation -= 360;
-            else if (startRotation < -180) startRotation += 360;
-            $(".rotationText").remove();
-
-            const textElement = document.createElementNS(svgNS, "text");
-            textElement.setAttribute("class", "rotationText");
-            textElement.setAttribute("x", "20");
-            textElement.setAttribute("y", "65");
-            textElement.setAttribute("fill", "#ffffff");
-            textElement.setAttribute("font-size", "60");
-            textElement.setAttribute("font-family", "Arial, sans-serif");
-            textElement.setAttribute("pointer-events", "all");
-            textElement.setAttribute("cursor", "pointer");
-            textElement.setAttribute("text-decoration", "underline");
-            textElement.textContent = startRotation + "°";
-
-            $(textElement).on("mousedown touchstart", function(ev) {
-                ev.stopPropagation();
-                ev.preventDefault();
-                const currentRotation = startRotation;
-                const newRotation = prompt(`Enter rotation (current: ${currentRotation}°):`, currentRotation);
-                if (newRotation !== null && !isNaN(newRotation)) {
-                    const rotation = parseInt(newRotation);
-                    const constrainedRotation = Math.max(-180, Math.min(180, rotation));
-                    startRotation = Math.round(constrainedRotation);
-                    textElement.textContent = startRotation + "°";
-                    updateThumb();
-                    drawPath();
-                }
-            });
-
-            $(".autoMap")[0].appendChild(textElement);
-            updateThumb();
-            drawPath();
-        }
-    });
-
-    $(document).on("mousemove", function(e) {
-        if (!isDragging) return;
-        const deltaX = e.clientX - startMouseX;
-        if (dragMode === "move") {
-            let newVal = startValue + deltaX;
-            newVal = Math.max(100, Math.min(1446.5998, newVal));
-            $slider.val(newVal).trigger("input");
-        }
-    });
-
-    $(document).on("touchend mouseup touchcancel", function() {
-        isDragging = false;
-    });
+function getCurrentPlan() {
+  const raw = localStorage.getItem("currentPlan2026");
+  if (!raw) return { start: "CENTER", steps: [] };
+  try {
+    const plan = JSON.parse(raw);
+    if (!plan || typeof plan !== "object") return { start: "CENTER", steps: [] };
+    if (!Array.isArray(plan.steps)) plan.steps = [];
+    if (!plan.start) plan.start = "CENTER";
+    return plan;
+  } catch {
+    return { start: "CENTER", steps: [] };
+  }
 }
 
-// Initialize
-updateThumb();
-drawPath();
-
-
-function moveTo(x, y) {
-    finishedPath = finishedPath + ` M ${x} ${y} `
-}
-function lineTo(x, y) {
-    finishedPath = finishedPath + ` L ${x} ${y} `
-
-}
-function cubicBezier(startControlX, startControlY, endControlX, endControlY, endX, endY) {
-    finishedPath = finishedPath + ` C ${startControlX} ${startControlY}, ${endControlX} ${endControlY}, ${endX} ${endY}`
-}
-function cubicBezierContinued(endControlX, endControlY, endX, endY) {
-    finishedPath = finishedPath + ` S ${endControlX} ${endControlY}, ${endX} ${endY}`
-
-}
-function quadBezier(controlX, controlY, endX, endY) {
-    finishedPath = finishedPath + ` Q ${controlX} ${controlY}, ${endX} ${endY}`
-}
-function quadBezierContinued(endX, endY) {
-    finishedPath = finishedPath + ` T ${endX} ${endY}`
-}
-function arc(endX, endY, rx, sweep) {
-    finishedPath = finishedPath + ` A ${rx} ${rx} 0 0 ${sweep} ${endX} ${endY}`
+function setCurrentPlan(plan) {
+  localStorage.setItem("currentPlan2026", JSON.stringify(plan));
 }
 
-$(".send").on("click", () => {
-    let $oH = document.getElementsByClassName("ordered")
-    let finalString = startRotation + "_" + ($slider.val() - 100) / 1370 + "_"
-    // console.log($oH)
-    for (let i = 0; i < $oH.length; i++) {
-        let $eq = $($oH[i])
-        finalString = finalString + $eq.text() + "-"
-    }
-    finalString = finalString.slice(0, -1)
-    localStorage.setItem("currentPath", finalString)
+function setCurrentStart(startKey) {
+  currentStart = startKey;
+  const plan = getCurrentPlan();
+  plan.start = startKey;
+  setCurrentPlan(plan);
 
-    console.log(finalString)
-    if ($("#connect")[0].checked) {
-        nt4Client.publishTopic("/touchboard/posePlotterFinalString", "string")
-        nt4Client.addSample("/touchboard/posePlotterFinalString", finalString);
+  for (const b of startBtns) b.classList.toggle("active", b.dataset.start === startKey);
+  for (const m of startMarkers) m.classList.toggle("active", m.dataset.start === startKey);
 
-        $(".connectionText").text("Sending Path!")
+  render();
+}
 
-        setTimeout(() => {
-            $(".connectionText").text("Connected")
-        }, 3000);
+function addStep(step) {
+  const plan = getCurrentPlan();
+  plan.steps.push(step);
+  setCurrentPlan(plan);
+  render();
+}
+
+function removeStep(index) {
+  const plan = getCurrentPlan();
+  plan.steps.splice(index, 1);
+  setCurrentPlan(plan);
+  render();
+}
+
+function moveStep(from, to) {
+  const plan = getCurrentPlan();
+  const [it] = plan.steps.splice(from, 1);
+  plan.steps.splice(to, 0, it);
+  setCurrentPlan(plan);
+  render();
+}
+
+// -------------------- Build robot outline --------------------
+function updateRobotOutline() {
+  const start = START_POSES[currentStart];
+  if (!start) return;
+
+  const rearGap = ROBOT.rearGap;
+
+  const x0 = start.x;
+  const y0 = start.y;
+
+  const L = ROBOT.length;
+  const W = ROBOT.width;
+
+  const pts = [
+    { x: x0 - L / 2, y: y0 - W / 2 },
+    { x: x0 + L / 2, y: y0 - W / 2 },
+    { x: x0 + L / 2, y: y0 + W / 2 },
+    { x: x0 - L / 2, y: y0 + W / 2 },
+    { x: x0 - L / 2, y: y0 + W / 2 - rearGap },
+    { x: x0 - L / 2, y: y0 - W / 2 + rearGap },
+    { x: x0 - L / 2, y: y0 - W / 2 }
+  ];
+
+  const svgPts = pts.map(fieldToSvg);
+  const d = "M " + svgPts.map(p => `${fmt(p.x)} ${fmt(p.y)}`).join(" L ");
+  robotOutline.setAttribute("d", d);
+}
+
+// -------------------- Waypoints / Polyline --------------------
+function clearWaypoints() {
+  waypointsG.innerHTML = "";
+  plannedPath.setAttribute("points", "");
+}
+
+function rebuildWaypointsFromPlan(plan) {
+  clearWaypoints();
+
+  const pointsField = [];
+  pointsField.push(START_POSES[plan.start]);
+
+  for (const step of plan.steps) {
+    if (step.anchor) pointsField.push(step.anchor);
+  }
+
+  const pointsSvg = pointsField.map(fieldToSvg);
+  plannedPath.setAttribute(
+    "points",
+    pointsSvg.map(p => `${fmt(p.x)} ${fmt(p.y)}`).join(" ")
+  );
+
+  // Draw animation on the line only (no waypoint motion)
+  try {
+    const len = plannedPath.getTotalLength();
+    plannedPath.classList.remove("reveal");
+    plannedPath.style.strokeDasharray = `${len}`;
+    plannedPath.style.strokeDashoffset = `${len}`;
+    plannedPath.getBoundingClientRect();
+    plannedPath.classList.add("reveal");
+  } catch { /* ignore */ }
+
+  for (let i = 0; i < pointsSvg.length; i++) {
+    const c = document.createElementNS("http://www.w3.org/2000/svg", "circle");
+    c.setAttribute("class", "waypoint");
+    c.setAttribute("cx", fmt(pointsSvg[i].x));
+    c.setAttribute("cy", fmt(pointsSvg[i].y));
+    c.setAttribute("r", "0.085");
+    c.setAttribute("vector-effect", "non-scaling-stroke");
+    c.style.animationDelay = `${i * 0.06}s`; // fade-in only
+    waypointsG.appendChild(c);
+  }
+}
+
+// -------------------- Render UI --------------------
+function renderPlanList(plan) {
+  orderHolder.innerHTML = "";
+
+  plan.steps.forEach((step, idx) => {
+    const row = document.createElement("div");
+    row.className = "ordered";
+    row.draggable = true;
+    row.dataset.index = String(idx);
+
+    const label = document.createElement("div");
+    label.className = "orderedLabel";
+    label.textContent = `${idx + 1}. ${stepLabel(step)}`;
+
+    const del = document.createElement("button");
+    del.className = "orderedRemove";
+    del.textContent = "×";
+    del.addEventListener("click", () => removeStep(idx));
+
+    row.appendChild(label);
+    row.appendChild(del);
+
+    row.addEventListener("dragstart", (e) => {
+      row.classList.add("dragging");
+      e.dataTransfer.setData("text/plain", String(idx));
+      e.dataTransfer.effectAllowed = "move";
+    });
+    row.addEventListener("dragend", () => row.classList.remove("dragging"));
+
+    row.addEventListener("dragover", (e) => {
+      e.preventDefault();
+      e.dataTransfer.dropEffect = "move";
+    });
+    row.addEventListener("drop", (e) => {
+      e.preventDefault();
+      const from = Number(e.dataTransfer.getData("text/plain"));
+      const to = idx;
+      if (!Number.isFinite(from) || from === to) return;
+      moveStep(from, to);
+    });
+
+    orderHolder.appendChild(row);
+  });
+}
+
+function renderSavedDropdown() {
+  const plans = getStoredPlans();
+
+  if (!savedDropdown) return;
+
+  // preserve selection if possible
+  const prev = savedDropdown.value;
+
+  savedDropdown.innerHTML = `<option value="">(select a path)</option>`;
+  plans.forEach((p, idx) => {
+    const opt = document.createElement("option");
+    opt.value = String(idx);
+    opt.textContent = p.name || `Path ${idx + 1}`;
+    savedDropdown.appendChild(opt);
+  });
+
+  if (prev !== "" && Number.isFinite(Number(prev)) && plans[Number(prev)]) {
+    savedDropdown.value = prev;
+    selectedSaveIndex = Number(prev);
+  } else {
+    // keep selectedSaveIndex in sync
+    if (selectedSaveIndex >= 0 && selectedSaveIndex < plans.length) {
+      savedDropdown.value = String(selectedSaveIndex);
     } else {
-        $(".connectionText").text("Not Connected!")
-        setTimeout(() => {
-            $(".connectionText").text("Offline")
-        }, 3000);
+      selectedSaveIndex = -1;
+      savedDropdown.value = "";
     }
+  }
+}
+savedDropdown?.addEventListener("change", () => {
+  const plans = getStoredPlans();
+  const idx = Number(savedDropdown.value);
+  if (!Number.isFinite(idx) || idx < 0 || idx >= plans.length) {
+    selectedSaveIndex = -1;
+    return;
+  }
+  selectedSaveIndex = idx;
+  setFromString(plans[idx].value);
+  toast(`Loaded: ${plans[idx].name}`, "ok");
+});
 
-})
 
-// setFromString("3+-I-4S-0+-LM-T-3+-K-4S-0+-LB-T-3+-L-4S-0")
+// -------------------- Serialize / Deserialize --------------------
 
-export function setFromString(string) {
-    $(".orderHolder").empty()
-    if (string == null) {
-        return
-
-    } else if (string.length < 1) {
-        return
-    }
-    //deal with Pose position
-    let poseParts = string.split("_")
-    startRotation = parseFloat(poseParts[0])
-    let x = parseFloat(poseParts[1]) * 1370 + 100
-    $slider.val(x).trigger("input")
-    let actions = poseParts[poseParts.length - 1]
-    let stringArr = actions.split("-")
-
-    for (let i = 0; i < stringArr.length; i++) {
-
-        let $cr = $("<div>").addClass("ordered").text(stringArr[i]).appendTo(".orderHolder").on("mousedown touchstart", (event) => {
-            let $ct = event.currentTarget
-            currentTimeout = setTimeout(() => {
-                currentDragFrom = $ct
-
-                if (event.pageX == null) {
-                    startDragX = event.changedTouches[0].pageX
-                } else {
-                    startDragX = event.pageX
-                }
-                initalLeft = $(currentDragFrom).offset().left
-                $($ct).addClass("orderedPhase").css("left", startDragX - ($($ct).width() / 2) + "px")
-                $($ct).next().addClass("orderedGap")
-                setTimeout(() => {
-                    $(".ordered").addClass("orderedTransition")
-
-                }, 10);
-                $(".ordered").css("background-color", "#7300ff55")
-
-            }, 200);
-            currentDragStarted = false
-            mouseIsDown = true
-
-        }).on("mouseup touchend mouseleave", (event) => {
-            clearTimeout(currentTimeout)
-
-            if (currentDragStarted) {
-
-                $(".ordered").removeClass("orderedTransition")
-
-                $(currentDragFrom).removeClass("orderedPhase")
-                $(".orderedGap").removeClass("orderedGap").removeClass("orderedGapLeft")
-                $(".orderedGapLeft").removeClass("orderedGap").removeClass("orderedGapLeft")
-
-                mouseIsDown = false
-
-                $(".ordered").css("left", "0px")
-
-                currentDragFrom = ""
-                currentDragTo = ""
-                $(".ordered").css("background-color", "rgb(12, 12, 12)")
-
-            } else {
-                $(".ordered").removeClass("orderedTransition").css("left", "0px").removeClass("orderedGap").removeClass("orderedLeft").removeClass("orderedPhase")
-            }
-        }).on("click", (event) => {
-            event.preventDefault()
-            if (!currentDragStarted) {
-                $($cr).remove()
-            }
-        }).on("touchcancel", () => {
-            clearTimeout(currentTimeout)
-        })
-        assignPoseMetadata($cr, stringArr[i])
-        $(".orderHolder").scrollLeft($(".orderHolder")[0].scrollWidth)
-
-        // if($(".multiSwitch").attr("data-value") == "Simultaneous"){
-        //     $cr.text(eq$.attr("data-pose") + "S")
-        // }
-
-        $cr.css("fill", "#7300ff")
-        $cr.offset()
-        setTimeout(() => {
-            $cr.css('fill', "#333333").css("transition", '500ms ease fill')
-            setTimeout(() => {
-                $cr.css("transition", '')
-            }, 500);
-        }, 10);
-    }
-
+// UI save string (keeps anchors so reload still draws correctly)
+function buildUISaveString() {
+  const plan = getCurrentPlan();
+  return JSON.stringify({
+    version: 2026,
+    start: plan.start,
+    steps: plan.steps
+  });
 }
 
+// ROBOT payload (NO anchors)
+function buildRobotObject() {
+  const plan = getCurrentPlan();
+  const stripStep = (s) => {
+    if (s.type === "INTAKE") return { type: s.type, untilSecondsRemaining: s.untilSecondsRemaining };
+    if (s.type === "TRENCH") return { type: s.type, choice: s.choice, atSecondsRemaining: s.atSecondsRemaining };
+    if (s.type === "CHUTE") return { type: s.type, atSecondsRemaining: s.atSecondsRemaining };
+    if (s.type === "DEPOT") return { type: s.type, atSecondsRemaining: s.atSecondsRemaining };
+    if (s.type === "HANG") return { type: s.type, atSecondsRemaining: s.atSecondsRemaining };
+    return { type: s.type };
+  };
 
-$(".clear").on("click", () => {
-    $(".orderHolder").empty()
-    $(".poseSelectorTitle").text("Saved")
+  return {
+    version: 2026,
+    start: plan.start,
+    startPose: START_POSES[plan.start],
+    steps: plan.steps.map(stripStep)
+  };
+}
 
-})
+function updateFinalString() {
+  const obj = buildRobotObject();
+  const s = JSON.stringify(obj);
+  localStorage.setItem("currentPath", s); // UI.js publishes this on connect
+  finalStringPre.textContent = s;
+  return s;
+}
 
-setFromString(localStorage.getItem("currentPath"))
+export function setFromString(str) {
+  try {
+    const obj = JSON.parse(str);
+    const start = obj.start ?? "CENTER";
+    const steps = Array.isArray(obj.steps) ? obj.steps : [];
+    setCurrentPlan({ start, steps });
+    currentStart = start;
+    setCurrentStart(start);
+    render();
+  } catch {
+    // ignore
+  }
+}
 
-$('.save').on("mousedown touchstart", () => {
-    let saveName = $(".saveName").val()
+// -------------------- Event wiring --------------------
+startBtns.forEach((b) => b.addEventListener("click", () => setCurrentStart(b.dataset.start)));
+startMarkers.forEach((m) => m.addEventListener("click", () => setCurrentStart(m.dataset.start)));
 
-    if (saveName !== null) {
-        let $oH = document.getElementsByClassName("ordered")
-        let finalString = startRotation + "_" + ($slider.val() - 100) / 1370 + "_"
-        for (let i = 0; i < $oH.length; i++) {
-            let $eq = $($oH[i])
-            finalString = finalString + $eq.text() + "-"
-        }
-        finalString = finalString.slice(0, -1)
+zones.forEach((z) => {
+  z.addEventListener("click", async () => {
+    const stepType = z.dataset.step;
+    const ax = Number(z.dataset.anchorX);
+    const ay = Number(z.dataset.anchorY);
+    const anchor = Number.isFinite(ax) && Number.isFinite(ay) ? { x: ax, y: ay } : null;
 
-        paths = JSON.parse(localStorage.getItem("paths"))
+    const timeOptions = [];
+    for (let t = 20; t >= 0; t--) timeOptions.push({ value: t, label: `${t} seconds remaining` });
 
-        paths[saveName] = finalString;
-
-        localStorage.setItem("paths", JSON.stringify(paths));
-
-        $(".poseSelector").children('.selectOption').remove()
-
-
-        for (let i in paths) {
-            $("<div>").addClass("selectOption").insertBefore('.saveManager').text(i).val(paths[i]).on("mousedown touchstart", (event) => {
-                setFromString($(event.currentTarget).val())
-                $(".poseSelectorTitle").text(i)
-
-            })
-        }
+    if (stepType === "INTAKE") {
+      const picked = await showModal({
+        title: "Intake until…",
+        options: timeOptions,
+        defaultValue: 9
+      });
+      if (picked == null) return;
+      addStep({
+        type: "INTAKE",
+        untilSecondsRemaining: clampInt(picked, 0, 20),
+        anchor
+      });
+      return;
     }
-    $(".saveName").val("")
-})
 
-$(".delete").off().on("click", () => {
-    $(".selectOption").off().on("mousedown touchstart", (event) => {
-        paths = JSON.parse(localStorage.getItem("paths"))
+    if (stepType === "CHUTE") {
+      const picked = await showModal({
+        title: "Chute: go at…",
+        options: timeOptions,
+        defaultValue: 12
+      });
+      if (picked == null) return;
+      addStep({
+        type: "CHUTE",
+        atSecondsRemaining: clampInt(picked, 0, 20),
+        anchor
+      });
+      return;
+    }
 
-        delete paths[$(event.currentTarget).text()]
+    if (stepType === "DEPOT") {
+      const picked = await showModal({
+        title: "Depot: go at…",
+        options: timeOptions,
+        defaultValue: 12
+      });
+      if (picked == null) return;
+      addStep({
+        type: "DEPOT",
+        atSecondsRemaining: clampInt(picked, 0, 20),
+        anchor
+      });
+      return;
+    }
 
-        localStorage.setItem("paths", JSON.stringify(paths));
+    if (stepType === "TRENCH") {
+      const options = [
+        { value: "LEFT", label: "Left Trench" },
+        { value: "RIGHT", label: "Right Trench" },
+        { value: "BEST", label: "Pick Best" }
+      ];
 
-        $(".poseSelector").children('.selectOption').remove()
+      const picked = await showModal({
+        title: "Trench choice",
+        options,
+        defaultValue: z.dataset.defaultChoice ?? "BEST"
+      });
+      if (picked == null) return;
 
+      const atPicked = await showModal({
+        title: "Trench: go at…",
+        options: timeOptions,
+        defaultValue: 10
+      });
+      if (atPicked == null) return;
 
-        for (let i in paths) {
-            $("<div>").addClass("selectOption").insertBefore('.saveManager').text(i).val(paths[i]).on("mousedown touchstart", (event) => {
-                setFromString($(event.currentTarget).val())
-                $(".poseSelectorTitle").text(i)
+      addStep({
+        type: "TRENCH",
+        choice: picked,
+        atSecondsRemaining: clampInt(atPicked, 0, 20),
+        anchor
+      });
+      return;
+    }
 
-            })
-        }
+    if (stepType === "HANG") {
+      const picked = await showModal({
+        title: "Hang at…",
+        options: timeOptions,
+        defaultValue: 5
+      });
+      if (picked == null) return;
+      addStep({
+        type: "HANG",
+        atSecondsRemaining: clampInt(picked, 0, 20),
+        anchor
+      });
+      return;
+    }
+  });
+});
 
-        $(".select").removeClass("selectOpen").scrollTop(0)
+// Save / delete / clear
+saveBtn?.addEventListener("click", () => {
+  const name = (saveNameInput.value || "").trim();
+  if (!name) return;
 
-    })
-})
+  const plans = getStoredPlans();
+  const uiStr = buildUISaveString();
+
+  const existing = plans.findIndex(p => p.name === name);
+  if (existing >= 0) plans[existing] = { name, value: uiStr };
+  else plans.push({ name, value: uiStr });
+
+  setStoredPlans(plans);
+  selectedSaveIndex = plans.findIndex(p => p.name === name);
+  renderSavedDropdown();
+  toast("Saved ✓", "ok");
+});
+
+deleteBtn?.addEventListener("click", () => {
+  const plans = getStoredPlans();
+  if (selectedSaveIndex < 0 || selectedSaveIndex >= plans.length) return;
+  plans.splice(selectedSaveIndex, 1);
+  setStoredPlans(plans);
+  selectedSaveIndex = -1;
+  renderSavedDropdown();
+  toast("Deleted", "warn");
+});
+
+clearBtn?.addEventListener("click", () => {
+  setCurrentPlan({ start: currentStart, steps: [] });
+  render();
+  toast("Cleared", "warn");
+});
+
+// Send to robot
+function enableDisableSend() {
+  if (!sendBtn) return;
+  sendBtn.disabled = !currentConnected;
+  sendBtn.textContent = currentConnected ? "Send to Robot" : "Offline";
+}
+
+sendBtn?.addEventListener("click", () => {
+  if (!currentConnected) {
+    toast("Offline — not sent", "bad");
+    return;
+  }
+
+  const s = updateFinalString();
+
+  try {
+    nt4Client.publishTopic("/touchboard/posePlotterFinalString", "string");
+  } catch { /* ignore */ }
+
+  nt4Client.addSample("/touchboard/posePlotterFinalString", s);
+
+  pulseSend();
+  toast("Sent ✓", "ok");
+
+  // Quick visual confirmation on the JSON panel
+  if (finalStringPre) {
+    finalStringPre.classList.remove("flash");
+    void finalStringPre.offsetWidth;
+    finalStringPre.classList.add("flash");
+  }
+});
+
+// -------------------- Main render --------------------
+function render() {
+  const plan = getCurrentPlan();
+  currentStart = plan.start;
+
+  updateRobotOutline();
+  rebuildWaypointsFromPlan(plan);
+  renderPlanList(plan);
+  renderSavedDropdown();
+  updateFinalString();
+  enableDisableSend();
+}
+
+// Initial
+setCurrentStart(getCurrentPlan().start ?? "CENTER");
+render();
+
+// Poll connection status for button enabling
+setInterval(enableDisableSend, 250);

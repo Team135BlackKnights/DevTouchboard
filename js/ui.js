@@ -1,232 +1,288 @@
 // MIT License
-
 // Copyright (c) 2025 Tigerbots
-
-// Permission is hereby granted, free of charge, to any person obtaining a copy
-// of this software and associated documentation files (the "Software"), to deal
-// in the Software without restriction, including without limitation the rights
-// to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-// copies of the Software, and to permit persons to whom the Software is
-// furnished to do so, subject to the following conditions:
-
-// The above copyright notice and this permission notice shall be included in all
-// copies or substantial portions of the Software.
-
-// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-// IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-// FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-// AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-// LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-// OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-// SOFTWARE. 
 
 import { NT4_Client } from "../lib/nt4.js";
 import { goToNextSong } from "./jukebox.js";
-import { setFromString } from "./autoBuilder.js";
 
-let paths = {}
+export let currentConnected = false;
 
-if (localStorage.getItem("paths") == null) {
-    localStorage.setItem("paths", JSON.stringify({}))
-    
-} else {
-    paths = JSON.parse(localStorage.getItem("paths"))
+function setConnTheme(state) {
+    const root = document.documentElement;
+    root.classList.remove("connected", "disconnected", "connecting");
+    root.classList.add(state);
+    root.setAttribute("data-conn", state);
 }
 
+// Default visual state before connection completes
+setConnTheme(localStorage.getItem("connect") === "true" ? "connecting" : "disconnected");
 
-
+// AutoBuilder persists its robot JSON here so UI can publish it on connect.
 if (localStorage.getItem("currentPath") == null) {
-    localStorage.setItem("currentPath", "")
-}
-
-for (let i in paths) {
-    $("<div>").addClass("selectOption").insertBefore('.saveManager').text(i).val(paths[i]).on("mousedown touchstart", (event) => {
-        setFromString($(event.currentTarget).val())
-        $(".poseSelectorTitle").text(i)
-
-    })
+    localStorage.setItem("currentPath", "");
 }
 
 $(".fullScreen").on("click", () => {
-    document.querySelector("html").requestFullscreen();
+    document.querySelector("html")?.requestFullscreen?.();
+});
 
-
-})
+// Close dropdown selects when clicking outside
 $("html").on("click", (event) => {
-    if (!$(event.target).hasClass("selectTitle") && !$(event.target).hasClass("textInput") && !$(event.target).hasClass("delete") && !$(event.target).hasClass("saveManager")) {
-        $(".select").removeClass("selectOpen").scrollTop(0)
+    if (
+        !$(event.target).hasClass("selectTitle") &&
+        !$(event.target).hasClass("textInput") &&
+        !$(event.target).hasClass("delete")
+    ) {
+        $(".select")
+            .filter(function () { return $(this).find(".selectTitle").length > 0; })
+            .removeClass("selectOpen")
+            .scrollTop(0);
     }
-})
+});
 
+// Tab switching
+function showTab($tab) {
+    const pageSel = $tab.attr("data-page");
+    if (!pageSel) return;
 
-let $ab = $(".animatedButton, .oneShotButton")
-for (let i = 0; i < $ab.length; i++) {
-    let text = $ab.eq(i).text()
-    $ab.eq(i).text(" ")
+    const $page = $(pageSel);
+    if ($page.length === 0) {
+        console.warn("Tab page not found:", pageSel);
+        return;
+    }
 
-    if (typeof text === "string") {
-        text = text.split(" ")
-        for (let j = 0; j < text.length; j++) {
-            let $word = $("<div>").appendTo($ab.eq(i)).css('display', 'flex');
-            for (let I = 0; I < text[j].length; I++) {
-                $("<p>").text(text[j][I]).addClass('funkyLetter').appendTo($word)
+    // hide all pages
+    $(".page, .pageF").hide();
+
+    // tab styling
+    $(".tab")
+        .removeClass("currentTab")
+        .css("background-color", "rgb(12, 12, 12)");
+
+    $tab
+        .addClass("currentTab")
+        .css("background-color", "rgb(32, 32, 32)");
+
+    // If the tab explicitly says how to show it, obey that.
+    let disp = $tab.attr("data-displaytype");
+
+    // Otherwise infer a sane default
+    if (!disp) {
+        if ($page.hasClass("jukeBox")) disp = "block";
+        else if ($page.hasClass("autonomus")) disp = "grid";
+        else disp = "grid";
+    }
+
+    $page.css("display", disp);
+}
+
+// Prefer click + pointer; don’t depend on mousedown/touchstart
+$(document).on("click pointerup", ".tab", (event) => {
+    event.preventDefault();
+    showTab($(event.currentTarget));
+});
+
+// Dropdown open/close behavior — ONLY for classic dropdown selects
+$(".select").on("touchdown mousedown", (event) => {
+    if ($(event.currentTarget).find(".selectTitle").length === 0) return;
+    if (!$(event.target).hasClass("textInput") && !$(event.target).hasClass("delete")) {
+        $(event.currentTarget).toggleClass("selectOpen");
+    }
+});
+
+function doNothing() { }
+
+function handleNewData(topic, timestamp, value) {
+    const topicSplit = topic.name.split("/");
+    const topicName = topicSplit[topicSplit.length - 1];
+
+    if (topicName === "musicIsFinished" && value === true) {
+        goToNextSong();
+        return;
+    }
+
+    const cls = "." + topic.name.replaceAll("/", "Sl-Sl-Sl-");
+    if ($(cls).hasClass("basicSubscription")) {
+        $(cls).children(".bSValue").text(JSON.stringify(value));
+    }
+}
+
+function onConnectCb() {
+    currentConnected = true;
+
+    setTimeout(() => {
+        $(".tabConnection").removeClass("tabConnection");
+
+        // Publish the pose plotter string topic and send whatever we currently have saved.
+        nt4Client.publishTopic("/touchboard/posePlotterFinalString", "string");
+        nt4Client.addSample("/touchboard/posePlotterFinalString", localStorage.getItem("currentPath") ?? "");
+
+        // Jukebox ping topic
+        nt4Client.publishTopic("/touchboard/musicIsFinished", "boolean");
+        nt4Client.addSample("/touchboard/musicIsFinished", true);
+        nt4Client.subscribe(["/touchboard/musicIsFinished"]);
+
+        // Publish every UI element with data-topic
+        let $uiElements = $(".page").children().add($(".btnHolder").children());
+
+        for (let i = 0; i < $uiElements.length; i++) {
+            const $el = $uiElements.eq(i);
+            const topic = $el.attr("data-topic");
+            const type = $el.attr("data-type");
+            if (!topic || !type) continue;
+
+            if ($el.hasClass("basicSubscription")) continue;
+
+            nt4Client.publishTopic("/touchboard/" + topic, type);
+
+            if ($el.attr("data-value") != null) {
+                if (type === "string") {
+                    nt4Client.addSample("/touchboard/" + topic, $el.attr("data-value"));
+                } else if (type === "double") {
+                    if ($el.attr("data-persist") === "true") {
+                        const stored = localStorage.getItem(topic);
+                        if (stored != null) nt4Client.addSample("/touchboard/" + topic, parseFloat(stored));
+                    } else {
+                        nt4Client.addSample("/touchboard/" + topic, parseFloat($el.attr("data-value")));
+                    }
+                } else {
+                    nt4Client.addSample("/touchboard/" + topic, JSON.parse($el.attr("data-value")));
+                }
             }
         }
 
+        // Bind UI behaviors
+        for (let i = 0; i < $uiElements.length; i++) {
+            const $el = $uiElements.eq(i);
+            const topic = $el.attr("data-topic");
+            const type = $el.attr("data-type");
+            if (!topic || !type) continue;
 
+            if ($el.hasClass("actionButton")) {
+                $el.on("touchstart mousedown", (event) => {
+                    nt4Client.addSample("/touchboard/" + topic, true);
+                    $el.attr("data-value", "true");
+                    event.preventDefault();
+                }).on("mouseup touchend mouseleave touchcancel", (event) => {
+                    nt4Client.addSample("/touchboard/" + topic, false);
+                    $el.attr("data-value", "false");
+                    event.preventDefault();
+                });
+            } else if ($el.hasClass("toggleButton")) {
+                $el.on("touchstart mousedown", (event) => {
+                    const cur = JSON.parse($el.attr("data-value"));
+                    const next = !cur;
+                    nt4Client.addSample("/touchboard/" + topic, next);
+                    $el.toggleClass("toggledOn");
+                    $el.attr("data-value", JSON.stringify(next));
+                    event.preventDefault();
+                });
+            } else if ($el.hasClass("oneShotButton")) {
+                nt4Client.subscribe(["/touchboard/" + topic]);
+                $el.on("touchstart mousedown", (event) => {
+                    nt4Client.addSample("/touchboard/" + topic, true);
+                    event.preventDefault();
+                });
+            } else if ($el.hasClass("numberComponent")) {
+                if ($el.attr("data-persist") === "true") {
+                    if (localStorage.getItem(topic) == null) {
+                        localStorage.setItem(topic, $el.attr("data-value"));
+                    } else {
+                        const current = localStorage.getItem(topic);
+                        $el.attr("data-value", current);
+                        $el.children(".numberTextInput").val(current);
+                    }
+                }
+
+                const roundToNearestX = (n, x) => x === 0 ? 0 : Math.round(n / x) * x;
+
+                $el.children(".numberPlus").on("mousedown touchstart", (event) => {
+                    event.preventDefault();
+                    const max = parseFloat($el.attr("data-max"));
+                    const step = parseFloat($el.attr("data-step"));
+                    const $input = $el.children(".numberTextInput");
+                    const v = roundToNearestX(parseFloat($input.val()) + step, step);
+                    if (v <= max) {
+                        $input.val(v);
+                        $el.attr("data-value", v);
+                        nt4Client.addSample("/touchboard/" + topic, v);
+                        if ($el.attr("data-persist") === "true") localStorage.setItem(topic, String(v));
+                    }
+                });
+
+                $el.children(".numberMinus").on("mousedown touchstart", (event) => {
+                    event.preventDefault();
+                    const min = parseFloat($el.attr("data-min"));
+                    const step = parseFloat($el.attr("data-step"));
+                    const $input = $el.children(".numberTextInput");
+                    const v = roundToNearestX(parseFloat($input.val()) - step, step);
+                    if (v >= min) {
+                        $input.val(v);
+                        $el.attr("data-value", v);
+                        nt4Client.addSample("/touchboard/" + topic, v);
+                        if ($el.attr("data-persist") === "true") localStorage.setItem(topic, String(v));
+                    }
+                });
+
+                $el.children(".numberTextInput").on("blur", (event) => {
+                    event.preventDefault();
+                    const max = parseFloat($el.attr("data-max"));
+                    const min = parseFloat($el.attr("data-min"));
+                    const $input = $(event.currentTarget);
+                    let v = parseFloat($input.val());
+                    if (v > max) v = max;
+                    if (v < min) v = min;
+                    $input.val(v);
+                    $el.attr("data-value", v);
+                    nt4Client.addSample("/touchboard/" + topic, v);
+                    if ($el.attr("data-persist") === "true") localStorage.setItem(topic, String(v));
+                });
+            } else if ($el.hasClass("select")) {
+                $el.children(".selectOption").on("mousedown", (event) => {
+                    const $opt = $(event.target);
+                    $el.attr("data-value", $opt.attr("data-value"));
+                    $el.children(".selectTitle").text($opt.text());
+                    nt4Client.addSample("/touchboard/" + topic, $el.attr("data-value"));
+                });
+            } else if ($el.hasClass("axis") || $el.hasClass("verticalAxis")) {
+                $el.attr("data-value", 0);
+                $el.children(".axisKnob, .verticalAxisKnob").val(0);
+
+                $el.children(".axisKnob, .verticalAxisKnob").on("input", (event) => {
+                    const v = parseFloat($(event.target).val());
+                    $el.attr("data-value", v);
+                    nt4Client.addSample("/touchboard/" + topic, v);
+                }).on("mouseup touchend", (event) => {
+                    $el.attr("data-value", 0);
+                    $(event.currentTarget).val(0);
+                    nt4Client.addSample("/touchboard/" + topic, 0);
+                });
+            } else if ($el.hasClass("basicSubscription")) {
+                nt4Client.subscribe([$el.attr("data-topic")]);
+                $el.addClass($el.attr("data-topic").replaceAll("/", "Sl-Sl-Sl-"));
+            }
+        }
+
+        $(".connectionText").text("Connected");
+        setConnTheme("connected"); // <- this drives the blue theme
+
+    }, 250);
+}
+
+function onDisconnectCb() {
+    currentConnected = false;
+
+    if ($("#connect").is(":checked")) {
+        $(".connectionText").text("Retrying");
+        setConnTheme("connecting");
+        setTimeout(() => window.location.reload(), 750);
+    } else {
+        $(".connectionText").text("Offline");
+        setConnTheme("disconnected");
     }
 }
 
-$(".animatedButton").on("mousedown touchstart", (event) => {
-
-    event.preventDefault()
-    let $spawnedCircle
-    let $ct = $(event.currentTarget)
-
-
-    //spawns a circle that represnts the touch
-    if (event.pageX == null) {
-        $spawnedCircle = $("<div>").css("background-color", $ct.css("background-color")).appendTo("body").addClass("spawnedCircle").css("top", event.changedTouches[0].pageY + "px").css("left", event.changedTouches[0].pageX + "px")
-        setTimeout(() => {
-            $($spawnedCircle.remove())
-        }, 3000);
-        $(event.currentTarget).attr("pageX", event.changedTouches[0].pageX).attr("pageY", event.changedTouches[0].pageY)
-
-    } else {
-
-        $spawnedCircle = $("<div>").css("background-color", $ct.css("background-color")).appendTo("body").addClass("spawnedCircle").css("top", event.pageY + "px").css("left", event.pageX + "px")
-        setTimeout(() => {
-            $($spawnedCircle.remove())
-        }, 3000);
-        $(event.currentTarget).attr("pageX", event.pageX).attr("pageY", event.pageY)
-
-    }
-    $spawnedCircle.offset()
-    $spawnedCircle.addClass("spawnedBigCircle")
-    let $foundP = $(event.currentTarget).find("p")
-    // let $parent = $(event.currentTarget).children(".animatedButton")
-
-    // text effects
-
-    let hue = (0 / $foundP.length) * 360
-
-    let effect = Math.floor(Math.random() * 6);
-    for (let i = 0; i < $foundP.length; i++) {
-        setTimeout(() => {
-            if (effect == 0) {
-                $foundP.eq(i).css("color", "hsl(" + hue + ", 100%, 50%").css("animation-name", "streachUp")
-                // $score.css("animation-name", "streachUp")
-            } else if (effect === 1) {
-                $foundP.eq(i).css("color", "hsl(" + hue + ", 100%, 50%").css("animation-name", "spinAround")
-                // $score.css("animation-name", "spinAround")
-            } else if (effect === 2) {
-                $foundP.eq(i).css("color", "hsl(" + hue + ", 100%, 50%").css("animation-name", "rollAround")
-                // $score.css("animation-name", "rollAround")
-
-            } else if (effect === 3) {
-                $foundP.eq(i).css("color", "hsl(" + hue + ", 100%, 50%").css("animation-name", "flipAround")
-                // $score.css("animation-name", "flipAround")
-
-            } else if (effect === 4) {
-                $foundP.eq(i).css("color", "hsl(" + hue + ", 100%, 50%").css("animation-name", "jumpUp")
-                // $score.css("animation-name", "jumpUp")
-
-            } else if (effect === 5) {
-                $foundP.eq(i).css("color", "hsl(" + hue + ", 100%, 50%").css("animation-name", "squash")
-                // $score.css("animation-name", "squash") 
-            }
-
-            hue = ((i + 1) / $foundP.length) * 360
-            setTimeout(() => {
-                $foundP.eq(i).css("color", "white").css("animation-name", "")
-            }, 200 + 50 * $foundP.length);
-
-        }, 50 * i);
-
-
-    }
-})
-
-$(".tab").on("mousedown touchstart", (event) => {
-    let $ct = $(event.currentTarget)
-    $(".page, .pageF").css("display", "none")
-    $(".tab").removeClass("currentTab").css("background-color", "rgb(12, 12, 12)")
-    $ct.addClass("currentTab").css("background-color", "rgb(32, 32, 32)")
-    if ($ct.attr("data-displaytype") == null) {
-        $($ct.attr("data-page")).css("display", "grid")
-    } else {
-        $($ct.attr("data-page")).css("display", $ct.attr("data-displaytype"))
-
-    }
-})
-
-function oneShotAnimation(elemClass) {
-    //runs as callback in case input not recieved
-
-    let $spawnedCircle
-    let $ct = $(elemClass)
-
-
-
-    $spawnedCircle = $("<div>").css("background-color", $ct.css("background-color")).appendTo("body").addClass("spawnedCircle").css("top", $ct.offset().top + $ct.height() / 2 + "px").css("left", $ct.offset().left + $ct.width() / 2 + "px")
-    setTimeout(() => {
-        $($spawnedCircle.remove())
-    }, 3000);
-
-
-    $spawnedCircle.offset()
-    $spawnedCircle.addClass("spawnedBigCircle")
-    let $foundP = $ct.find("p")
-    // let $parent = $(event.currentTarget).children(".animatedButton")
-
-    // text effects
-
-    let hue = (0 / $foundP.length) * 360
-
-    let effect = Math.floor(Math.random() * 6);
-    for (let i = 0; i < $foundP.length; i++) {
-        setTimeout(() => {
-            if (effect == 0) {
-                $foundP.eq(i).css("color", "hsl(" + hue + ", 100%, 50%").css("animation-name", "streachUp")
-                // $score.css("animation-name", "streachUp")
-            } else if (effect === 1) {
-                $foundP.eq(i).css("color", "hsl(" + hue + ", 100%, 50%").css("animation-name", "spinAround")
-                // $score.css("animation-name", "spinAround")
-            } else if (effect === 2) {
-                $foundP.eq(i).css("color", "hsl(" + hue + ", 100%, 50%").css("animation-name", "rollAround")
-                // $score.css("animation-name", "rollAround")
-
-            } else if (effect === 3) {
-                $foundP.eq(i).css("color", "hsl(" + hue + ", 100%, 50%").css("animation-name", "flipAround")
-                // $score.css("animation-name", "flipAround")
-
-            } else if (effect === 4) {
-                $foundP.eq(i).css("color", "hsl(" + hue + ", 100%, 50%").css("animation-name", "jumpUp")
-                // $score.css("animation-name", "jumpUp")
-
-            } else if (effect === 5) {
-                $foundP.eq(i).css("color", "hsl(" + hue + ", 100%, 50%").css("animation-name", "squash")
-                // $score.css("animation-name", "squash") 
-            }
-
-            hue = ((i + 1) / $foundP.length) * 360
-            setTimeout(() => {
-                $foundP.eq(i).css("color", "white").css("animation-name", "")
-            }, 200 + 50 * $foundP.length);
-
-        }, 50 * i);
-
-
-    }
-}
-
-$(".select").on("touchdown mousedown", (event) => {
-    if (!$(event.target).hasClass("textInput") && !$(event.target).hasClass("delete") && !$(event.target).hasClass("saveManager")) {
-        $(event.currentTarget).toggleClass("selectOpen")
-    }
-})
-
-export var nt4Client = new NT4_Client(localStorage.getItem("teamNumber"),
+export var nt4Client = new NT4_Client(
+    localStorage.getItem("teamNumber"),
     "Touchboard",
     doNothing,
     doNothing,
@@ -235,319 +291,58 @@ export var nt4Client = new NT4_Client(localStorage.getItem("teamNumber"),
     onDisconnectCb
 );
 
-function doNothing() { }
-
+// Connect toggle
 if (localStorage.getItem("connect") === "true") {
-    $("#connect")[0].checked = true
-    $(".connectionText").text("Retrying")
-    $(".tabConnection").removeClass("tabConnection")
-
-    nt4Client.connect()
-
+    $("#connect")[0].checked = true;
+    $(".connectionText").text("Retrying");
+    $(".tabConnection").removeClass("tabConnection");
+    setConnTheme("connecting");
+    nt4Client.connect();
 } else {
-    $(".fullScreen").css("background-color", "rgb(32, 32, 32)")
-
-    $("html").css("background-color", "rgb(32, 32, 32)")
-    $(".tab").css("background-color", "rgb(12, 12, 12)")
-    $(".tabNav").css("background-color", "rgb(12, 12, 12)")
-    $(".currentTab").css("background-color", "rgb(32, 32, 32)")
-    nt4Client.disconnect()
-
+    nt4Client.disconnect();
 }
 
+// Toggle handler
 $("#connect").on("click", () => {
     if (!$("#connect").is(":checked")) {
-        $(".connectionText").text("Offline")
-        localStorage.setItem("connect", "false")
-        $(".fullScreen").css("background-color", "rgb(32, 32, 32)")
-
-        $("html").css("background-color", "rgb(32, 32, 32)")
-        $(".tab").css("background-color", "rgb(12, 12, 12)")
-        $(".tabNav").css("background-color", "rgb(12, 12, 12)")
-        $(".currentTab").css("background-color", "rgb(32, 32, 32)")
-        nt4Client.disconnect()
-
+        $(".connectionText").text("Offline");
+        setConnTheme("disconnected");
+        localStorage.setItem("connect", "false");
+        nt4Client.disconnect();
     } else {
-        $(".connectionText").text("Connecting")
-        localStorage.setItem("connect", "true")
-        $(".fullScreen").css("background-color", "")
-
-        $("html").css("background-color", "")
-        $(".tab").css("background-color", "")
-        $(".tabNav").css("background-color", "")
-        $(".currentTab").css("background-color", "")
-        nt4Client.disconnect()
-
-        nt4Client.connect()
-        $(".tabConnection").removeClass("tabConnection")
+        $(".connectionText").text("Connecting");
+        setConnTheme("connecting");
+        localStorage.setItem("connect", "true");
+        nt4Client.disconnect();
+        nt4Client.connect();
+        $(".tabConnection").removeClass("tabConnection");
     }
-})
+});
 
-function handleNewData(topic, timestamp, value) {
-    console.log(topic.name)
-    // console.log(value)
-    let topicSplit = topic.name.split("/")
-    let topicName = topicSplit[topicSplit.length - 1]
-    // console.log(topicSplit)
-
-    if (topicName == "musicIsFinished") {
-        if (value == true) {
-            goToNextSong()
-        }
-    }
-    if ($("." + topic.name.replaceAll("/", "Sl-Sl-Sl-")).hasClass("basicSubscription")) {
-        console.log(value)
-        $("." + (topic.name.replaceAll("/", "Sl-Sl-Sl-"))).children(".bSValue").text(JSON.stringify(value))
-    } else if ($("." + topicName).hasClass("oneShotButton")) {
-        oneShotAnimation("." + topicName)
-    }
-
-}
-nt4Client.subscribe(["/touchboard/musicIsFinished"])
-
-let $reefBtns = $(".reefPFHolder").children()
-
-for (let i = 0; i < $reefBtns.length; i++) {
-    let hue = i * (180 / (($reefBtns.length - 1) / 2))
-    if (i % 2 !== 0) {
-        hue = (i - 1) * (180 / (($reefBtns.length - 1) / 2))
-
-    }
-
-    // derive grid-area from data-topic by removing trailing "btn" so names like P10btn -> P10
-    $reefBtns.eq(i).css("background-color", "hsl(" + hue + " 100 25").css("border-color", "hsl(" + hue + " 100 50").css("grid-area", $reefBtns.eq(i).attr("data-topic").replace(/btn$/i, ""))
-}
-
-function onConnectCb() {
-    //on everything ts is NOT on callback
-
-    setTimeout(() => {
-
-        $(".tabConnection").removeClass("tabConnection")
-
-        $(".fullScreen").css("background-color", "rgb(32, 32, 32)")
-
-        $("html").css("background-color", "rgb(32, 32, 32)")
-        $(".tab").css("background-color", "rgb(12, 12, 12)")
-        $(".tabNav").css("background-color", "rgb(12, 12, 12)")
-        $(".currentTab").css("background-color", "rgb(32, 32, 32)")
-        nt4Client.publishTopic("/touchboard/posePlotterFinalString", "string")
-
-        nt4Client.addSample("/touchboard/posePlotterFinalString", localStorage.getItem("currentPath"))
-
-        nt4Client.publishTopic("/touchboard/musicIsFinished", "boolean")
-
-        nt4Client.addSample("/touchboard/musicIsFinished", true)
-
-        let $uiElements = $(".page").children().add($(".btnHolder").children())
-
-        for (let i = 0; i < $uiElements.length; i++) {
-            if ($uiElements.eq(i).attr("data-topic")) {
-                if ($uiElements.eq(i).hasClass("basicSubscription")) {
-                    continue
-                }
-
-                nt4Client.publishTopic("/touchboard/" + $uiElements.eq(i).attr("data-topic"), $uiElements.eq(i).attr("data-type"))
-                if ($uiElements.eq(i).attr("data-value")) {
-                    if ($uiElements.eq(i).attr("data-type") === "string") {
-                        nt4Client.addSample("/touchboard/" + $uiElements.eq(i).attr("data-topic"), $uiElements.eq(i).attr("data-value"))
-
-                    } else if ($uiElements.eq(i).attr("data-type") === "double") {
-                        if ($uiElements.eq(i).attr("data-persist") == "true") {
-                            nt4Client.addSample("/touchboard/" + $uiElements.eq(i).attr("data-topic"), parseFloat(localStorage.getItem($uiElements.eq(i).attr("data-topic"))))
-                        } else {
-                            nt4Client.addSample("/touchboard/" + $uiElements.eq(i).attr("data-topic"), parseFloat($uiElements.eq(i).attr("data-value")))
-                        }
-
-                    } else {
-                        nt4Client.addSample("/touchboard/" + $uiElements.eq(i).attr("data-topic"), JSON.parse($uiElements.eq(i).attr("data-value")))
-
-                    }
-                }
-            }
-        }
-
-        for (let i = 0; i < $uiElements.length; i++) {
-            if ($uiElements.eq(i).hasClass("actionButton")) {
-                $($uiElements.eq(i)).on("touchstart mousedown", (event) => {
-                    nt4Client.addSample("/touchboard/" + $uiElements.eq(i).attr("data-topic"), true)
-                    $uiElements.eq(i).attr("data-value", "true")
-                    event.preventDefault()
-                }).on("mouseup touchend mouseleave touchcancel", (event) => {
-                    nt4Client.addSample("/touchboard/" + $uiElements.eq(i).attr("data-topic"), false)
-                    $uiElements.eq(i).attr("data-value", "false");
-                    event.preventDefault()
-                })
-            } else if ($uiElements.eq(i).hasClass("toggleButton")) {
-                $uiElements.eq(i).on("touchstart mousedown", (event) => {
-                    nt4Client.addSample("/touchboard/" + $uiElements.eq(i).attr("data-topic"), !(JSON.parse($uiElements.eq(i).attr("data-value"))))
-                    $uiElements.eq(i).toggleClass("toggledOn")
-                    $uiElements.eq(i).attr("data-value", !(JSON.parse($uiElements.eq(i).attr("data-value"))))
-                    event.preventDefault()
-                })
-            } else if ($uiElements.eq(i).hasClass("oneShotButton")) {
-                nt4Client.subscribe(["/touchboard/" + $uiElements.eq(i).attr("data-topic")])
-                $uiElements.eq(i).on("touchstart mousedown", (event) => {
-                    nt4Client.addSample("/touchboard/" + $uiElements.eq(i).attr("data-topic"), true)
-                    event.preventDefault()
-                })
-            } else if ($uiElements.eq(i).hasClass("numberComponent")) {
-                if ($uiElements.eq(i).attr('data-persist') == "true") {
-                    if (localStorage.getItem($uiElements.eq(i).attr("data-topic")) == null) {
-                        localStorage.setItem($uiElements.eq(i).attr("data-topic"), $uiElements.eq(i).attr("data-value"))
-                    } else {
-                        let currentPersitant = localStorage.getItem($uiElements.eq(i).attr("data-topic"));
-                        $uiElements.eq(i).attr("data-value", currentPersitant)
-                        $uiElements.eq(i).children(".numberTextInput").attr("value", currentPersitant)
-                    }
-                }
-
-                $uiElements.eq(i).children(".numberPlus").on("mousedown touchstart", (event) => {
-                    event.preventDefault()
-                    let $ct = $(event.currentTarget)
-                    let max = parseFloat($ct.parent().attr("data-max"))
-                    let step = parseFloat($ct.parent().attr("data-step"))
-                    let $numberTarget = $ct.parent().children(".numberTextInput")
-                    let currentVal = roundToNearestX(parseFloat($numberTarget.val()) + step, step)
-                    if (currentVal <= max) {
-                        $numberTarget.val(currentVal)
-                        $ct.parent().attr("data-value", $numberTarget.val())
-                        nt4Client.addSample("/touchboard/" + $ct.parent().attr("data-topic"), parseFloat($ct.parent().attr("data-value")))
-                        if ($ct.parent().attr('data-persist') == "true") {
-                            localStorage.setItem($ct.parent().attr("data-topic"), $numberTarget.val())
-                        }
-                    }
-                })
-                $uiElements.eq(i).children(".numberMinus").on("mousedown touchstart", (event) => {
-                    event.preventDefault()
-                    let $ct = $(event.currentTarget)
-                    let min = parseFloat($ct.parent().attr("data-min"))
-                    let step = parseFloat($ct.parent().attr("data-step"))
-                    let $numberTarget = $ct.parent().children(".numberTextInput")
-                    let currentVal = roundToNearestX((parseFloat($numberTarget.val()) - step), step)
-                    if (currentVal >= min) {
-                        $numberTarget.val(currentVal)
-                        $ct.parent().attr("data-value", $numberTarget.val())
-                        nt4Client.addSample("/touchboard/" + $ct.parent().attr("data-topic"), parseFloat($ct.parent().attr("data-value")))
-                        if ($ct.parent().attr('data-persist') == "true") {
-                            localStorage.setItem($ct.parent().attr("data-topic"), $numberTarget.val())
-                        }
-                    }
-                })
-                $uiElements.eq(i).children(".numberTextInput").on("blur", (event) => {
-                    event.preventDefault()
-
-                    let $ct = $(event.currentTarget)
-                    let max = parseFloat($ct.parent().attr("data-max"))
-                    let min = parseFloat($ct.parent().attr("data-min"))
-
-                    if ($ct.val() > max) {
-                        $ct.val(max)
-                    } else if ($ct.val() < min) {
-                        $ct.val(min)
-                    }
-                    $ct.parent().attr("data-value", $ct.val())
-                    nt4Client.addSample("/touchboard/" + $ct.parent().attr("data-topic"), parseFloat($ct.parent().attr("data-value")))
-                    if ($ct.parent().attr('data-persist') == "true") {
-                        localStorage.setItem($ct.parent().attr("data-topic"), $ct.val())
-                    }
-                })
-            } else if ($uiElements.eq(i).hasClass("select")) {
-                $uiElements.eq(i).children(".selectOption").on("mousedown", (event) => {
-                    let $ct = $(event.target)
-                    $uiElements.eq(i).attr("data-value", $ct.attr("data-value"))
-                    $uiElements.eq(i).children(".selectTitle").text($ct.text())
-                    nt4Client.addSample("/touchboard/" + $uiElements.eq(i).attr("data-topic"), $uiElements.eq(i).attr("data-value"))
-
-                })
-            } else if ($uiElements.eq(i).hasClass("axis") || $uiElements.eq(i).hasClass("verticalAxis")) {
-
-
-                $uiElements.eq(i).attr("data-value", 0)
-                $uiElements.eq(i).children(".axisKnob, .verticalAxisKnob").val(0)
-
-                $uiElements.eq(i).children(".axisKnob, .verticalAxisKnob").on("input", (event) => {
-                    let $ct = $(event.target)
-                    $uiElements.eq(i).attr("data-value", $ct.val())
-                    nt4Client.addSample("/touchboard/" + $ct.parent().attr("data-topic"), parseFloat($ct.parent().attr("data-value")))
-
-                }).on("mouseup touchend", (event) => {
-                    let $ct = $(event.target)
-                    $uiElements.eq(i).attr("data-value", 0)
-                    $(event.currentTarget).val(0)
-                    nt4Client.addSample("/touchboard/" + $ct.parent().attr("data-topic"), parseFloat($ct.parent().attr("data-value")))
-                })
-            } else if ($uiElements.eq(i).hasClass("basicSubscription")) {
-
-                nt4Client.subscribe([$uiElements.eq(i).attr('data-topic')])
-
-                $uiElements.eq(i).addClass($uiElements.eq(i).attr('data-topic').replaceAll("/", "Sl-Sl-Sl-"))
-            }
-        }
-
-
-        $(".connectionText").text("Connected")
-
-    }, 1000);
-
-}
-function onDisconnectCb() {
-    if ($("#connect").is(":checked")) {
-        $(".fullScreen").css("background-color", "rgb(128, 32, 32)")
-
-
-        $("html").css("background-color", "rgb(128, 32, 32)")
-        $(".tab").css("background-color", "rgb(64, 12, 12)")
-        $(".tabNav").css("background-color", "rgb(64, 12, 12)")
-        $(".currentTab").css("background-color", "rgb(128, 32, 32)")
-        setTimeout(() => {
-            window.location.reload()
-
-        }, 1000);
-    }
-}
-
-
-
-
+// Team/IP overlay
 if (localStorage.getItem("teamNumber") == null) {
-    $(".connectionText").text("No Team")
-    $(".setTeamNumberOrIp").toggleClass("showTeamSet")
-    $("#connect")[0].checked = false
+    $(".connectionText").text("No Team");
+    setConnTheme("disconnected");
+    $(".setTeamNumberOrIp").toggleClass("showTeamSet");
+    $("#connect")[0].checked = false;
 }
 
 $(".setTeam").on("click", () => {
-    let currentTeamOrIp = $(".teamNumberInput").val().toString().replace(/\s/g, "");
-    if (currentTeamOrIp.length > 0) {
-
-        if (currentTeamOrIp.includes(".")) {
-            localStorage.setItem("teamNumber", currentTeamOrIp)
-        } else if (currentTeamOrIp.includes("localhost")) {
-            localStorage.setItem("teamNumber", "localhost")
-        } else if (currentTeamOrIp.length <= 5) {
-            let madeIp = "10."
-            //could probably code this better but in a rush
-            if (currentTeamOrIp.length == 5) {
-                madeIp = "10." + currentTeamOrIp.slice(0, 3) + "." + currentTeamOrIp.slice(3, 5) + ".2"
-            } else if (currentTeamOrIp.length == 4) {
-                madeIp = "10." + currentTeamOrIp.slice(0, 2) + "." + currentTeamOrIp.slice(2, 4) + ".2"
-            } else if (currentTeamOrIp.length == 3) {
-                madeIp = "10." + currentTeamOrIp.slice(0, 1) + "." + currentTeamOrIp.slice(1, 3) + ".2"
-            } else if (currentTeamOrIp.length == 2) {
-                madeIp = "10.0." + currentTeamOrIp.slice(0, 2) + ".2"
-            } else if (currentTeamOrIp.length == 1) {
-                madeIp = "10.0." + currentTeamOrIp.slice(0, 1) + ".2"
-
-            }
-
-            localStorage.setItem("teamNumber", madeIp);
+    let t = $(".teamNumberInput").val().toString().replace(/\s/g, "");
+    if (t.length > 0) {
+        if (t.includes(".")) {
+            localStorage.setItem("teamNumber", t);
+        } else if (t.includes("localhost")) {
+            localStorage.setItem("teamNumber", "localhost");
+        } else if (t.length <= 5) {
+            let ip = "10.";
+            if (t.length == 5) ip = "10." + t.slice(0, 3) + "." + t.slice(3, 5) + ".2";
+            else if (t.length == 4) ip = "10." + t.slice(0, 2) + "." + t.slice(2, 4) + ".2";
+            else if (t.length == 3) ip = "10." + t.slice(0, 1) + "." + t.slice(1, 3) + ".2";
+            else if (t.length == 2) ip = "10.0." + t.slice(0, 2) + ".2";
+            else if (t.length == 1) ip = "10.0." + t.slice(0, 1) + ".2";
+            localStorage.setItem("teamNumber", ip);
         }
-
     }
-    window.location.reload()
-})
-function roundToNearestX(number, x) {
-
-    if (x === 0) return 0;
-    return Math.round(number / x) * x;
-}
+    window.location.reload();
+});
